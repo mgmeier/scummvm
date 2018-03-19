@@ -126,7 +126,7 @@ static const PlainGameDescriptor s_sciGameTitles[] = {
 	// === SCI3 games =========================================================
 	{"lsl7",            "Leisure Suit Larry 7: Love for Sail!"},
 	{"lighthouse",      "Lighthouse: The Dark Being"},
-	{"phantasmagoria2", "Phantasmagoria II: A Puzzle of Flesh"},
+	{"phantasmagoria2", "Phantasmagoria 2: A Puzzle of Flesh"},
 	//{"shivers2",        "Shivers II: Harvest of Souls"},	// Not SCI
 	{"rama",            "RAMA"},
 	{0, 0}
@@ -379,6 +379,15 @@ Common::String convertSierraGameId(Common::String sierraId, uint32 *gameFlags, R
 		return "qfg3";
 	}
 
+	if (sierraId == "l7")
+		return "lsl7";
+
+	if (sierraId == "p2")
+		return "phantasmagoria2";
+
+	if (sierraId == "lite")
+		return "lighthouse";
+
 	return sierraId;
 }
 
@@ -414,6 +423,18 @@ static const ADExtraGuiOptionsMap optionsList[] = {
 			false
 		}
 	},
+
+#ifdef USE_RGB_COLOR
+	{
+		GAMEOPTION_HQ_VIDEO,
+		{
+			_s("Use high-quality video scaling"),
+			_s("Use linear interpolation when upscaling videos, where possible"),
+			"enable_hq_video",
+			true
+		}
+	},
+#endif
 
 	{
 		GAMEOPTION_PREFER_DIGITAL_SFX,
@@ -478,6 +499,17 @@ static const ADExtraGuiOptionsMap optionsList[] = {
 		}
 	},
 
+	// Phantasmagoria 2 - content censoring option
+	{
+		GAMEOPTION_ENABLE_CENSORING,
+		{
+			_s("Enable content censoring"),
+			_s("Enable the game's built-in optional content censoring"),
+			"enable_censoring",
+			false
+		}
+	},
+
 	AD_EXTRA_GUI_OPTIONS_TERMINATOR
 };
 
@@ -497,10 +529,24 @@ static ADGameDescription s_fallbackDesc = {
 
 static char s_fallbackGameIdBuf[256];
 
+static const char *directoryGlobs[] = {
+	"avi",
+	"english",
+	"french",
+	"german",
+	"italian",
+	"msg",
+	"spanish",
+	0
+};
+
 class SciMetaEngine : public AdvancedMetaEngine {
 public:
 	SciMetaEngine() : AdvancedMetaEngine(Sci::SciGameDescriptions, sizeof(ADGameDescription), s_sciGameTitles, optionsList) {
 		_singleId = "sci";
+		_maxScanDepth = 3;
+		_directoryGlobs = directoryGlobs;
+		_matchFullPaths = true;
 	}
 
 	virtual const char *getName() const {
@@ -603,7 +649,7 @@ const ADGameDescription *SciMetaEngine::fallbackDetect(const FileMap &allFiles, 
 	if (!foundResMap && !foundRes000)
 		return 0;
 
-	ResourceManager resMan;
+	ResourceManager resMan(true);
 	resMan.addAppropriateSourcesForDetection(fslist);
 	resMan.init();
 	// TODO: Add error handling.
@@ -628,7 +674,7 @@ const ADGameDescription *SciMetaEngine::fallbackDetect(const FileMap &allFiles, 
 		s_fallbackDesc.platform = Common::kPlatformAmiga;
 
 	// Determine the game id
-	Common::String sierraGameId = resMan.findSierraGameId();
+	Common::String sierraGameId = resMan.findSierraGameId(s_fallbackDesc.platform == Common::kPlatformMacintosh);
 
 	// If we don't have a game id, the game is not SCI
 	if (sierraGameId.empty())
@@ -756,6 +802,7 @@ SaveStateList SciMetaEngine::listSaves(const char *target) const {
 	filenames = saveFileMan->listSavefiles(pattern);
 
 	SaveStateList saveList;
+	bool hasAutosave = false;
 	int slotNr = 0;
 	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
 		// Obtain the last 3 digits of the filename, since they correspond to the save slot
@@ -765,7 +812,7 @@ SaveStateList SciMetaEngine::listSaves(const char *target) const {
 			Common::InSaveFile *in = saveFileMan->openForLoading(*file);
 			if (in) {
 				SavegameMetadata meta;
-				if (!get_savegame_metadata(in, &meta)) {
+				if (!get_savegame_metadata(in, meta)) {
 					// invalid
 					delete in;
 					continue;
@@ -775,6 +822,7 @@ SaveStateList SciMetaEngine::listSaves(const char *target) const {
 				if (slotNr == 0) {
 					// ScummVM auto-save slot
 					descriptor.setWriteProtectedFlag(true);
+					hasAutosave = true;
 				} else {
 					descriptor.setWriteProtectedFlag(false);
 				}
@@ -783,6 +831,12 @@ SaveStateList SciMetaEngine::listSaves(const char *target) const {
 				delete in;
 			}
 		}
+	}
+
+	if (!hasAutosave) {
+		SaveStateDescriptor descriptor(0, _("(Autosave)"));
+		descriptor.setLocked(true);
+		saveList.push_back(descriptor);
 	}
 
 	// Sort saves based on slot number.
@@ -807,7 +861,7 @@ SaveStateDescriptor SciMetaEngine::querySaveMetaInfos(const char *target, int sl
 	if (in) {
 		SavegameMetadata meta;
 
-		if (!get_savegame_metadata(in, &meta)) {
+		if (!get_savegame_metadata(in, meta)) {
 			// invalid
 			delete in;
 

@@ -47,16 +47,6 @@ AdlEngine_v2::AdlEngine_v2(OSystem *syst, const AdlGameDescription *gd) :
 	_random = new Common::RandomSource("adl");
 }
 
-Common::String AdlEngine_v2::getDiskImageName(byte volume) const {
-	const ADGameFileDescription *ag;
-
-	for (ag = _gameDescription->desc.filesDescriptions; ag->fileName; ag++)
-		if (ag->fileType == volume)
-			return ag->fileName;
-
-	error("Disk volume %d not found", volume);
-}
-
 void AdlEngine_v2::insertDisk(byte volume) {
 	delete _disk;
 	_disk = new DiskImage();
@@ -245,6 +235,14 @@ void AdlEngine_v2::drawItem(Item &item, const Common::Point &pos) {
 }
 
 void AdlEngine_v2::loadRoom(byte roomNr) {
+	if (Common::find(_brokenRooms.begin(), _brokenRooms.end(), roomNr) != _brokenRooms.end()) {
+		debug("Warning: attempt to load non-existent room %d", roomNr);
+		_roomData.description.clear();
+		_roomData.pictures.clear();
+		_roomData.commands.clear();
+		return;
+	}
+
 	Room &room = getRoom(roomNr);
 	StreamPtr stream(room.data->createReadStream());
 

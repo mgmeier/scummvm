@@ -3,6 +3,7 @@ MODULE := engines/director
 MODULE_OBJS = \
 	archive.o \
 	cast.o \
+	cachedmactext.o \
 	detection.o \
 	director.o \
 	events.o \
@@ -14,6 +15,7 @@ MODULE_OBJS = \
 	score.o \
 	sound.o \
 	sprite.o \
+	stxt.o \
 	util.o \
 	lingo/lingo-gr.o \
 	lingo/lingo.o \

@@ -23,18 +23,19 @@
 #ifndef TITANIC_STAR_VIEW_H
 #define TITANIC_STAR_VIEW_H
 
-#include "titanic/support/simple_file.h"
-#include "titanic/support/video_surface.h"
 #include "titanic/star_control/star_camera.h"
-#include "titanic/star_control/viewport.h"
 #include "titanic/star_control/surface_fader.h"
-#include "titanic/star_control/error_code.h"
-#include "titanic/star_control/fvector.h"
+#include "titanic/star_control/viewport.h"
+#include "titanic/support/rect.h"
 
 namespace Titanic {
 
+class CErrorCode;
+class CGameObject;
 class CStarControl;
 class CStarField;
+class CVideoSurface;
+class FVector;
 
 class CStarView {
 private:
@@ -43,19 +44,25 @@ private:
 	CVideoSurface *_videoSurface;
 	CStarCamera _camera;
 	bool _hasReference;
-	CViewport _sub13;
+	CViewport _photoViewport;
 	CSurfaceFader _fader;
-	CVideoSurface *_videoSurface2;
+	CVideoSurface *_photoSurface;
 	CGameObject *_homePhotoMask;
 	bool _field218;
 	bool _showingPhoto;
 private:
-	bool fn1();
 	void fn18(CStarCamera *camera);
 	void fn19(int v);
 
-	void randomizeVectors1(FVector &v1, FVector &v2);
-	void randomizeVectors2(FVector &v1, FVector &v2);
+	/**
+	 * Gets a random position and orientation
+	 */
+	void randomizeVectors1(FVector &pos, FVector &orientation);
+
+	/**
+	 * Gets a random position and orientation
+	 */
+	void getRandomPhotoViewpoint(FVector &pos, FVector &orientation);
 
 	/**
 	 * Handles resizing the surface
@@ -64,6 +71,7 @@ private:
 		CVideoSurface **surface);
 public:
 	CStarView();
+	~CStarView();
 
 	/**
 	 * Load the data for the class from file
@@ -86,6 +94,11 @@ public:
 	 * Allows the item to draw itself
 	 */
 	void draw(CScreenManager *screenManager);
+
+	/**
+	 * Updates the camera, allowing for movement
+	 */
+	bool updateCamera();
 
 	/**
 	 * Handles mouse down messages
@@ -139,9 +152,9 @@ public:
 	void fn11();
 
 	/**
-	 * Toggles whether the crosshairs box is visible
+	 * Toggles whether the viewpoint box is visible in the starfield
 	 */
-	void toggleCrosshairs();
+	void toggleBox();
 	
 	void fn13();
 	void fn14();
@@ -151,9 +164,15 @@ public:
 	 */
 	void setHasReference();
 	
-	void fn16();
-	void fn17();
+	/**
+	 * Handles locking in a star
+	 */
+	void lockStar();
 
+	/**
+	 * Handles unlocking a star
+	 */
+	void unlockStar();
 };
 
 } // End of namespace Titanic

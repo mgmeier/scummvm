@@ -34,11 +34,10 @@ class BladeRunnerEngine;
 class Items;
 
 class Item {
-	BladeRunnerEngine *_vm;
-
 	friend class Items;
 
-private:
+	BladeRunnerEngine *_vm;
+
 	int          _itemId;
 	int          _setId;
 
@@ -53,7 +52,7 @@ private:
 	int          _screenX;
 	int          _screenY;
 	float        _depth;
-	bool         _isTargetable;
+	bool         _isTarget;
 	bool         _isSpinning;
 	int          _facingChange;
 	bool         _isVisible;
@@ -61,16 +60,17 @@ private:
 
 public:
 	Item(BladeRunnerEngine *vm);
-	~Item();
 
-	void getXYZ(float *x, float *y, float *z);
+	void getXYZ(float *x, float *y, float *z) const;
 	void setXYZ(Vector3 position);
-	void getWidthHeight(int *width, int *height);
+	void getWidthHeight(int *width, int *height) const;
 
-	bool isTargetable();
+	bool isTarget() const;
 	bool tick(Common::Rect *screenRect, bool special);
 
-	void setup(int itemId, int setId, int animationId, Vector3 position, int facing, int height, int width, bool isTargetableFlag, bool isVisibleFlag, bool isPoliceMazeEnemyFlag);
+	void setup(int itemId, int setId, int animationId, Vector3 position, int facing, int height, int width, bool isTargetFlag, bool isVisible, bool isPoliceMazeEnemy);
+
+	bool isUnderMouse(int mouseX, int mouseY) const;
 };
 
 }

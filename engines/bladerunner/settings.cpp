@@ -22,15 +22,22 @@
 
 #include "bladerunner/settings.h"
 
+#include "bladerunner/ambient_sounds.h"
 #include "bladerunner/bladerunner.h"
 #include "bladerunner/chapters.h"
+#include "bladerunner/music.h"
 #include "bladerunner/scene.h"
 
 #include "common/debug.h"
 
 namespace BladeRunner {
 
-Settings::Settings(BladeRunnerEngine *vm) : _vm(vm) {
+Settings::Settings(BladeRunnerEngine *vm) {
+	_vm = vm;
+
+	_difficulty = 1;
+	_playerAgenda = 1;
+
 	_chapter = 1;
 	_gamma = 1.0f;
 
@@ -44,6 +51,13 @@ Settings::Settings(BladeRunnerEngine *vm) : _vm(vm) {
 
 	_fullHDFrames = true;
 	_mst3k = false;
+
+	_ammoType = 0;
+	_ammoAmounts[0] = 0;
+	_ammoAmounts[1] = 0;
+	_ammoAmounts[2] = 0;
+
+	_learyMode = false;
 }
 
 bool Settings::openNewScene() {
@@ -54,10 +68,9 @@ bool Settings::openNewScene() {
 	assert(_newScene != -1);
 
 	if (_startingGame) {
-		// Stop ambient audio and music
-//		ambient::removeAllNonLoopingSounds(Ambient, 1);
-//		ambient::removeAllLoopingSounds(Ambient, 1);
-//		music::stop(Music, 2);
+		_vm->_ambientSounds->removeAllNonLoopingSounds(true);
+		_vm->_ambientSounds->removeAllLoopingSounds(1);
+		_vm->_music->stop(2);
 	}
 
 	int currentSet = _vm->_scene->getSetId();
@@ -98,30 +111,64 @@ bool Settings::openNewScene() {
 	return true;
 }
 
-int Settings::getAmmoType() {
+int Settings::getAmmoType() const {
 	return _ammoType;
 }
 
-int Settings::getAmmoAmount(int ammoType) {
+void Settings::setAmmoType(int ammoType) {
+	if (_ammoAmounts[ammoType] > 0) {
+		_ammoType = ammoType;
+	}
+}
+
+int Settings::getAmmo(int ammoType) const {
 	return _ammoAmounts[ammoType];
 }
 
 void Settings::addAmmo(int ammoType, int ammo) {
-	if (ammoType > _ammoType || _ammoAmounts[_ammoType] == 0)
+	if (ammoType > _ammoType || _ammoAmounts[_ammoType] == 0) {
 		_ammoType = ammoType;
+	}
 	_ammoAmounts[ammoType] += ammo;
 }
 
-int Settings::getDifficulty() {
+void Settings::decreaseAmmo() {
+	if (_difficulty == 0 || _ammoType == 0) {
+		return;
+	}
+
+	if (_ammoAmounts[_ammoType] > 0) {
+		--_ammoAmounts[_ammoType];
+	}
+
+	if (_ammoAmounts[_ammoType] == 0) {
+		for (int i = 2; i >= 0; --i) {
+			if (_ammoAmounts[i] > 0) {
+				_ammoType = i;
+				return;
+			}
+		}
+	}
+}
+
+int Settings::getDifficulty() const {
 	return _difficulty;
 }
 
-int Settings::getPlayerAgenda() {
+int Settings::getPlayerAgenda() const {
 	return _playerAgenda;
 }
 
 void Settings::setPlayerAgenda(int agenda) {
 	_playerAgenda = agenda;
+}
+
+bool Settings::getLearyMode() const {
+	return _learyMode;
+}
+
+void Settings::setLearyMode(bool learyMode) {
+	_learyMode = learyMode;
 }
 
 } // End of namespace BladeRunner

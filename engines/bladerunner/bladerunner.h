@@ -32,36 +32,49 @@
 #include "engines/engine.h"
 
 #include "graphics/surface.h"
-#include "suspects_database.h"
+
+//TODO: remove these when game is playable
+#define BLADERUNNER_DEBUG_CONSOLE 0
+#define BLADERUNNER_DEBUG_GAME 0
+
+namespace Common {
+struct Event;
+}
+
+namespace GUI {
+class Debugger;
+}
+
+struct ADGameDescription;
 
 namespace BladeRunner {
 
-enum AnimationModes {
-	kAnimationModeIdle = 0,
-	kAnimationModeWalk = 1,
-	kAnimationModeRun = 2,
-	kAnimationModeCombatIdle = 4,
-	kAnimationModeCombatWalk = 7,
-	kAnimationModeCombatRun = 8
-};
-
 class Actor;
-class ADQ;
+class ActorDialogueQueue;
+class ScreenEffects;
 class AIScripts;
 class AmbientSounds;
+class AudioMixer;
 class AudioPlayer;
 class AudioSpeech;
 class Chapters;
 class CrimesDatabase;
 class Combat;
+class Debugger;
+class DialogueMenu;
+class Elevator;
+class ESPER;
 class Font;
 class GameFlags;
 class GameInfo;
 class ItemPickup;
 class Items;
+class KIA;
 class Lights;
 class Mouse;
+class Music;
 class Obstacles;
+class Overlays;
 class Scene;
 class SceneObjects;
 class SceneScript;
@@ -69,68 +82,93 @@ class Settings;
 class Shape;
 class SliceAnimations;
 class SliceRenderer;
+class Spinner;
+class SuspectsDatabase;
 class TextResource;
+class KIAShapes;
+class Vector3;
 class View;
+class VK;
 class Waypoints;
 class ZBuffer;
 
-#define ACTORS_COUNT 100
-#define VOICEOVER_ACTOR (ACTORS_COUNT - 1)
-
 class BladeRunnerEngine : public Engine {
 public:
-	bool      _gameIsRunning;
-	bool      _windowIsActive;
-	int       _playerLosesControlCounter;
+#if BLADERUNNER_DEBUG_GAME
+	static const int kArchiveCount = 100;
+#else
+	static const int kArchiveCount = 10;
+#endif
+	static const int kActorCount = 100;
+	static const int kActorVoiceOver = kActorCount - 1;
 
-	ADQ              *_adq;
-	AIScripts        *_aiScripts;
-	AmbientSounds    *_ambientSounds;
-	AudioPlayer      *_audioPlayer;
-	AudioSpeech      *_audioSpeech;
-	Chapters         *_chapters;
-	CrimesDatabase   *_crimesDatabase;
-	Combat           *_combat;
-	GameFlags        *_gameFlags;
-	GameInfo         *_gameInfo;
-	ItemPickup       *_itemPickup;
-	Items            *_items;
-	Lights           *_lights;
-	Font             *_mainFont;
-	Mouse            *_mouse;
-	Obstacles        *_obstacles;
-	Scene            *_scene;
-	SceneObjects     *_sceneObjects;
-	SceneScript      *_sceneScript;
-	Settings         *_settings;
-	SliceAnimations  *_sliceAnimations;
-	SliceRenderer    *_sliceRenderer;
-	SuspectsDatabase *_suspectsDatabase;
-	View             *_view;
-	Waypoints        *_waypoints;
-	int              *_gameVars;
+	bool       _gameIsRunning;
+	bool       _windowIsActive;
+	int        _playerLosesControlCounter;
+	const char *_languageCode;
 
-	TextResource    *_textActorNames;
-	TextResource    *_textCrimes;
-	TextResource    *_textCluetype;
-	TextResource    *_textKIA;
-	TextResource    *_textSpinnerDestinations;
-	TextResource    *_textVK;
-	TextResource    *_textOptions;
+	ActorDialogueQueue *_actorDialogueQueue;
+	ScreenEffects      *_screenEffects;
+	AIScripts          *_aiScripts;
+	AmbientSounds      *_ambientSounds;
+	AudioMixer         *_audioMixer;
+	AudioPlayer        *_audioPlayer;
+	AudioSpeech        *_audioSpeech;
+	Chapters           *_chapters;
+	CrimesDatabase     *_crimesDatabase;
+	Combat             *_combat;
+	DialogueMenu       *_dialogueMenu;
+	Elevator           *_elevator;
+	ESPER              *_esper;
+	GameFlags          *_gameFlags;
+	GameInfo           *_gameInfo;
+	ItemPickup         *_itemPickup;
+	Items              *_items;
+	KIA                *_kia;
+	Lights             *_lights;
+	Font               *_mainFont;
+	Mouse              *_mouse;
+	Music              *_music;
+	Obstacles          *_obstacles;
+	Overlays           *_overlays;
+	Scene              *_scene;
+	SceneObjects       *_sceneObjects;
+	SceneScript        *_sceneScript;
+	Settings           *_settings;
+	SliceAnimations    *_sliceAnimations;
+	SliceRenderer      *_sliceRenderer;
+	Spinner            *_spinner;
+	SuspectsDatabase   *_suspectsDatabase;
+	View               *_view;
+	VK                 *_vk;
+	Waypoints          *_waypoints;
+	int                *_gameVars;
+
+	TextResource       *_textActorNames;
+	TextResource       *_textCrimes;
+	TextResource       *_textClueTypes;
+	TextResource       *_textKIA;
+	TextResource       *_textSpinnerDestinations;
+	TextResource       *_textVK;
+	TextResource       *_textOptions;
 
 	Common::Array<Shape*> _shapes;
 
-	Actor *_actors[ACTORS_COUNT];
+	Actor *_actors[kActorCount];
 	Actor *_playerActor;
 
-	int in_script_counter;
+	Graphics::Surface  _surfaceFront;
+	Graphics::Surface  _surfaceBack;
+	Graphics::Surface  _surface4;
 
-	Graphics::Surface  _surface1;
-	Graphics::Surface  _surface2;
 	ZBuffer           *_zbuffer;
 
 	Common::RandomSource _rnd;
 
+	Debugger *_debugger;
+
+	bool _isWalkingInterruptible;
+	bool _interruptWalking;
 	bool _playerActorIdle;
 	bool _playerDead;
 	bool _speechSkipped;
@@ -142,13 +180,33 @@ public:
 	int _walkSoundId;
 	int _walkSoundVolume;
 	int _walkSoundBalance;
-	int _walkingActorId;
+	int _runningActorId;
+
+	int _mouseClickTimeLast;
+	int _mouseClickTimeDiff;
+
+	int  _walkingToExitId;
+	bool _isInsideScriptExit;
+	int  _walkingToRegionId;
+	bool _isInsideScriptRegion;
+	int  _walkingToObjectId;
+	bool _isInsideScriptObject;
+	int  _walkingToItemId;
+	bool _isInsideScriptItem;
+	bool _walkingToEmpty;
+	int  _walkingToEmptyX;
+	int  _walkingToEmptyY;
+	bool _isInsideScriptEmpty;
+	int  _walkingToActorId;
+	bool _isInsideScriptActor;
+
+	int _actorUpdateCounter;
+
 private:
-	static const uint kArchiveCount = 10;
 	MIXArchive _archives[kArchiveCount];
 
 public:
-	BladeRunnerEngine(OSystem *syst);
+	BladeRunnerEngine(OSystem *syst, const ADGameDescription *desc);
 	~BladeRunnerEngine();
 
 	bool hasFeature(EngineFeature f) const;
@@ -162,16 +220,27 @@ public:
 	bool loadSplash();
 	bool init2();
 
+	Common::Point getMousePos() const;
+	bool isMouseButtonDown() const;
+
 	void gameLoop();
 	void gameTick();
+
 	void actorsUpdate();
+
+	void walkingReset();
+
 	void handleEvents();
-	void handleMouseClick(int x, int y);
-	void handleMouseClickExit(int x, int y, int exitIndex);
-	void handleMouseClickRegion(int x, int y, int regionIndex);
-	void handleMouseClickItem(int x, int y, int itemId);
-	void handleMouseClickActor(int x, int y, int actorId);
-	void handleMouseClick3DObject(int x, int y, int objectId, bool isClickable, bool isTarget);
+	void handleKeyUp(Common::Event &event);
+	void handleKeyDown(Common::Event &event);
+	void handleMouseAction(int x, int y, bool mainButton, bool buttonDown);
+	void handleMouseClickExit(int exitId, int x, int y, bool buttonDown);
+	void handleMouseClickRegion(int regionId, int x, int y, bool buttonDown);
+	void handleMouseClickItem(int itemId, bool buttonDown);
+	void handleMouseClickActor(int actorId, bool mainButton, bool buttonDown, Vector3 &scenePosition, int x, int y);
+	void handleMouseClick3DObject(int objectId, bool buttonDown, bool isClickable, bool isTarget);
+	void handleMouseClickEmpty(int x, int y, Vector3 &scenePosition, bool buttonDown);
+
 	void gameWaitForActive();
 	void loopActorSpeaking();
 
@@ -179,7 +248,7 @@ public:
 
 	bool openArchive(const Common::String &name);
 	bool closeArchive(const Common::String &name);
-	bool isArchiveOpen(const Common::String &name);
+	bool isArchiveOpen(const Common::String &name) const;
 
 	Common::SeekableReadStream *getResourceStream(const Common::String &name);
 
@@ -188,11 +257,17 @@ public:
 	void playerGainsControl();
 
 	void ISez(const char *str);
+
+	void blitToScreen(const Graphics::Surface &src);
+
+	GUI::Debugger *getDebugger();
 };
 
 static inline const Graphics::PixelFormat createRGB555() {
 	return Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0);
 }
+
+void blit(const Graphics::Surface &src, Graphics::Surface &dst);
 
 } // End of namespace BladeRunner
 

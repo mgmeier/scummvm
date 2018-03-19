@@ -88,6 +88,7 @@ struct SelectorCache {
 	// value, save, restore, title, button, icon, draw
 	Selector delete_; ///< Called by Animate() to dispose a view object
 	Selector z;
+	Selector setPri;
 
 	// SCI1+ static selectors
 	Selector parseLang;
@@ -129,6 +130,11 @@ struct SelectorCache {
 	// SCI1.1 Mac icon bar selectors
 	Selector iconIndex; ///< Used to index icon bar objects
 	Selector select;
+
+	Selector handsOff;
+	Selector setStep;
+	Selector setMotion;
+	Selector cycleSpeed;
 
 #ifdef ENABLE_SCI32
 	Selector data; // Used by Array()/String()
@@ -173,6 +179,21 @@ struct SelectorCache {
 	Selector setPos; // for Torin volume sync
 	Selector setSize; // for PQ4 volume sync
 	Selector displayValue; // for PQ:SWAT volume sync
+	Selector new_; // for Torin/LSL7 save/load patching
+	Selector mainCel; // for MGDX volume sync
+	Selector move; // for Phant2 volume sync
+	Selector eachElementDo; // for Phant2 volume sync
+	Selector physicalBar; // for Phant2 volume sync
+	Selector init; // for Phant2 save/load patching
+	Selector scratch; // for Phant2 save/load patching
+	Selector num; // for Phant2 restore from launcher
+	Selector reallyRestore; // for Phant2 restore from launcher
+	Selector bookMark; // for Phant2 auto-save
+	Selector fileNumber; // for RAMA save/load
+	Selector description; // for RAMA save/load
+	Selector dispose; // for RAMA save/load save from launcher
+	Selector masterVolume; // for RAMA volume sync
+	Selector setCel; // for RAMA volume sync
 #endif
 };
 
@@ -218,7 +239,7 @@ void invokeSelector(EngineState *s, reg_t object, int selectorId,
  * This function checks if index is in the right range, and sets the flag
  * on obj.-info- if it is.
  */
-void updateInfoFlagViewVisible(Object *obj, int index);
+void updateInfoFlagViewVisible(Object *obj, int index, bool fromPropertyOp = false);
 #endif
 
 } // End of namespace Sci

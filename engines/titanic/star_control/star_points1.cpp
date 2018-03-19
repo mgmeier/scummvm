@@ -22,6 +22,8 @@
 
 #include "titanic/star_control/star_points1.h"
 #include "titanic/star_control/star_camera.h"
+#include "titanic/star_control/surface_area.h"
+#include "titanic/support/files_manager.h"
 #include "titanic/titanic.h"
 
 namespace Titanic {
@@ -54,6 +56,7 @@ bool CStarPoints1::initialize() {
 		entry._z = sin(v2) * 3000000.0;
 	}
 
+	delete stream;
 	return true;
 }
 
@@ -72,7 +75,7 @@ void CStarPoints1::draw(CSurfaceArea *surface, CStarCamera *camera) {
 	surface->_pixel = 0xff0000;
 	uint oldPixel = surface->_pixel;
 	surface->setColorFromPixel();
-	SurfaceAreaMode oldMode = surface->setMode(SA_NONE);
+	SurfaceAreaMode oldMode = surface->setMode(SA_SOLID);
 
 	vector1._z = vTemp._x * pose._row1._z + vTemp._y * pose._row2._z + vTemp._z * pose._row3._z + pose._vector._z;
 	vector1._x = vTemp._x * pose._row1._x + vTemp._y * pose._row2._x + vTemp._z * pose._row3._x + pose._vector._x;
@@ -88,14 +91,14 @@ void CStarPoints1::draw(CSurfaceArea *surface, CStarCamera *camera) {
 		vector3._z = vTemp._x * pose._row1._z + vTemp._y * pose._row2._z + vTemp._z * pose._row3._z + pose._vector._z;
 
 		if (flag && vector1._z > threshold && vector3._z > threshold) {
-			vector2 = camera->proc28(2, vector1);
-			vector4 = camera->proc28(2, vector3);
+			vector2 = camera->getRelativePos(2, vector1);
+			vector4 = camera->getRelativePos(2, vector3);
 
 			r.bottom = vector4._y + vHeight2;
 			r.right = vector4._x + vWidth2;
 			r.top = vector2._y + vHeight2;
 			r.left = vector2._x + vWidth2;
-			surface->fillRect(r);
+			surface->drawLine(r);
 		}
 
 		vector1 = vector3;

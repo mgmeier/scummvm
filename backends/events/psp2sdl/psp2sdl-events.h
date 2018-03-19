@@ -24,16 +24,44 @@
 #define BACKEND_EVENTS_PSP2_H
 
 #include "backends/events/sdl/sdl-events.h"
+#include <psp2/touch.h>
 
 /**
  * SDL Events manager for the PSP2.
  */
 class PSP2EventSource : public SdlEventSource {
+public:
+	PSP2EventSource();
 protected:
-	bool handleJoyButtonDown(SDL_Event &ev, Common::Event &event);
-	bool handleJoyButtonUp(SDL_Event &ev, Common::Event &event);
-	bool handleJoyAxisMotion(SDL_Event &ev, Common::Event &event);
-	void preprocessEvents(SDL_Event *event);
+	void preprocessEvents(SDL_Event *event) override;
+private:
+
+	enum {
+		MAX_NUM_FINGERS = 3, // number of fingers to track per panel
+		MAX_TAP_TIME = 250, // taps longer than this will not result in mouse click events
+	}; // track three fingers per panel
+
+	typedef struct {
+		int id; // -1: no touch
+		Uint32 timeLastDown;
+		int lastX; // last known screen coordinates
+		int lastY; // last known screen coordinates
+	} Touch;
+
+	Touch _finger[SCE_TOUCH_PORT_MAX_NUM][MAX_NUM_FINGERS]; // keep track of finger status
+
+	typedef enum DraggingType {
+		DRAG_NONE = 0,
+		DRAG_TWO_FINGER,
+		DRAG_THREE_FINGER,
+	} DraggingType;
+
+	DraggingType _multiFingerDragging[SCE_TOUCH_PORT_MAX_NUM]; // keep track whether we are currently drag-and-dropping
+
+	void preprocessFingerDown(SDL_Event *event);
+	void preprocessFingerUp(SDL_Event *event);
+	void preprocessFingerMotion(SDL_Event *event);
+	void convertTouchXYToGameXY(float touchX, float touchY, int *gameX, int *gameY);
 };
 
 #endif /* BACKEND_EVENTS_PSP2_H */

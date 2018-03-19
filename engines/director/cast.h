@@ -30,6 +30,9 @@
 
 namespace Director {
 
+class Stxt;
+class CachedMacText;
+
 enum CastType {
 	kCastTypeNull = 0,
 	kCastBitmap = 1,
@@ -42,7 +45,8 @@ enum CastType {
 	kCastShape = 8,
 	kCastMovie = 9,
 	kCastDigitalVideo = 10,
-	kCastLingoScript = 11
+	kCastLingoScript = 11,
+	kCastRTE = 12
 };
 
 class Cast {
@@ -136,6 +140,11 @@ public:
 	byte textSlant;
 	Common::Array<TextFlag> textFlags;
 	uint16 palinfo1, palinfo2, palinfo3;
+
+	Common::String _ftext;
+	void importStxt(const Stxt *stxt);
+	void importRTE(byte* text);
+	CachedMacText *cachedMacText;
 };
 
 enum ButtonType {

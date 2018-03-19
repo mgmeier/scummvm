@@ -28,6 +28,7 @@
 #include "common/endian.h"
 #include "common/events.h"
 #include "common/random.h"
+#include "common/savefile.h"
 #include "common/stream.h"
 
 #include "video/flic_decoder.h"
@@ -51,6 +52,69 @@ class RewindableAudioStream;
  * - Bud Tucker in Double Trouble
  */
 namespace Tucker {
+
+enum CursorStyle {
+	kCursorNormal     = 0,
+	kCursorTalk       = 1,
+	kCursorArrowRight = 2,
+	kCursorArrowUp    = 3,
+	kCursorArrowLeft  = 4,
+	kCursorArrowDown  = 5,
+	kCursorMap        = 6
+};
+
+enum CursorState {
+	kCursorStateNormal         = 0,
+	kCursorStateDialog         = 1,
+	kCursorStateDisabledHidden = 2
+};
+
+enum PanelState {
+	kPanelStateNormal    = 0,
+	kPanelStateShrinking = 1,
+	kPanelStateExpanding = 2
+};
+
+enum PanelStyle {
+	kPanelStyleVerbs = 0,
+	kPanelStyleIcons = 1
+};
+
+enum PanelType {
+	kPanelTypeNormal           = 0,
+	kPanelTypeEmpty            = 1,
+	kPanelTypeLoadSavePlayQuit = 2,
+	kPanelTypeLoadSaveSavegame = 3
+};
+
+enum Verb {
+	kVerbWalk  = 0,
+	kVerbLook  = 1,
+	kVerbTalk  = 2,
+	kVerbOpen  = 3,
+	kVerbClose = 4,
+	kVerbGive  = 5,
+	kVerbTake  = 6,
+	kVerbMove  = 7,
+	kVerbUse   = 8,
+
+	kVerbFirst = kVerbWalk,
+	kVerbLast  = kVerbUse
+};
+
+enum VerbPreposition {
+	kVerbPrepositionNone = 0,
+
+	kVerbPrepositionWith = 11,
+	kVerbPrepositionTo   = 12
+};
+
+enum Part {
+  kPartInit  = 0,
+  kPartOne   = 1,
+  kPartTwo   = 2,
+  kPartThree = 3
+};
 
 struct Action {
 	int _key;
@@ -157,7 +221,7 @@ struct LocationObject {
 	int _toWalkY2;
 	int _standX;
 	int _standY;
-	int _cursorNum;
+	CursorStyle _cursorStyle;
 };
 
 struct LocationSound {
@@ -191,27 +255,18 @@ enum {
 	kStartupLocationGame = 1,
 	kDefaultCharSpeechSoundCounter = 1,
 	kMaxSoundVolume = 127,
-	kLastSaveSlot = 99
-};
-
-enum Verb {
-	kVerbWalk  = 0,
-	kVerbLook  = 1,
-	kVerbTalk  = 2,
-	kVerbOpen  = 3,
-	kVerbClose = 4,
-	kVerbGive  = 5,
-	kVerbTake  = 6,
-	kVerbMove  = 7,
-	kVerbUse   = 8
+	kLastSaveSlot = 99,
+	kAutoSaveSlot = kLastSaveSlot
 };
 
 enum InputKey {
 	kInputKeyPause = 0,
 	kInputKeyEscape,
-	kInputKeyToggleInventory,
+	kInputKeyTogglePanelStyle,
 	kInputKeyToggleTextSpeech,
 	kInputKeyHelp,
+	kInputKeySkipSpeech,
+
 	kInputKeyCount
 };
 
@@ -281,6 +336,24 @@ public:
 		kMaxDirtyRects = 32
 	};
 
+	struct SavegameHeader {
+		uint16 version;
+		uint32 flags;
+		Common::String description;
+		uint32 saveDate;
+		uint32 saveTime;
+		uint32 playTime;
+		Graphics::Surface *thumbnail;
+	};
+
+	enum SavegameError {
+		kSavegameNoError = 0,
+		kSavegameInvalidTypeError,
+		kSavegameInvalidVersionError,
+		kSavegameNotFoundError,
+		kSavegameIoError
+	};
+
 	TuckerEngine(OSystem *system, Common::Language language, uint32 flags);
 	virtual ~TuckerEngine();
 
@@ -288,6 +361,10 @@ public:
 	virtual bool hasFeature(EngineFeature f) const;
 	GUI::Debugger *getDebugger() { return _console; }
 
+	static SavegameError readSavegameHeader(Common::InSaveFile *file, SavegameHeader &header, bool loadThumbnail = false);
+	static SavegameError readSavegameHeader(const char *target, int slot, SavegameHeader &header);
+	bool isAutosaveAllowed();
+	static bool isAutosaveAllowed(const char *target);
 protected:
 
 	int getRandomNumber();
@@ -298,8 +375,8 @@ protected:
 	void waitForTimer(int ticksCount);
 	void parseEvents();
 	void updateCursorPos(int x, int y);
-	void setCursorNum(int num);
-	void setCursorType(int type);
+	void setCursorStyle(CursorStyle num);
+	void setCursorState(CursorState state);
 	void showCursor(bool visible);
 	void setupNewLocation();
 	void copyLocBitmap(const char *filename, int offset, bool isMask);
@@ -322,7 +399,7 @@ protected:
 	void updateSfxData3_2();
 	void saveOrLoad();
 	void handleMouseOnPanel();
-	void switchPanelType();
+	void togglePanelStyle();
 	void redrawPanelOverBackground();
 	void drawConversationTexts();
 	void updateScreenScrolling();
@@ -440,6 +517,7 @@ protected:
 	void updateSprite_locationNum13(int i);
 	void execData3PreUpdate_locationNum13();
 	void updateSprite_locationNum14(int i);
+	void execData3Update_locationNum14();
 	void execData3PreUpdate_locationNum14();
 	void execData3PreUpdate_locationNum14Helper1(int i);
 	void execData3PreUpdate_locationNum14Helper2(int i);
@@ -573,11 +651,16 @@ protected:
 	void updateSprite_locationNum81_1(int i);
 	void updateSprite_locationNum82(int i);
 
-	template<class S> void saveOrLoadGameStateData(S &s);
-	virtual Common::Error loadGameState(int num);
-	virtual Common::Error saveGameState(int num, const Common::String &description);
+	template<class S> SavegameError saveOrLoadGameStateData(S &s);
+	virtual Common::Error loadGameState(int slot);
+	virtual Common::Error saveGameState(int slot, const Common::String &description);
+	Common::Error writeSavegame(int slot, const Common::String &description, bool autosave = false);
+	SavegameError writeSavegameHeader(Common::OutSaveFile *file, SavegameHeader &header);
+	void writeAutosave();
+	bool canLoadOrSave() const;
 	virtual bool canLoadGameStateCurrently();
 	virtual bool canSaveGameStateCurrently();
+	virtual bool existsSavegame();
 
 	TuckerConsole *_console;
 
@@ -598,13 +681,13 @@ protected:
 	void loadCharsetHelper();
 	void loadCharSizeDta();
 	void loadPanel();
-	void loadBudSpr(int startOffset);
-	int loadCTable01(int index, int firstSpriteNum, int *framesCount);
-	void loadCTable02(int fl);
+	void loadBudSpr();
+	int  loadCTable01(int *framesCount);
+	void loadCTable02();
 	void loadLoc();
 	void loadObj();
 	void loadData();
-	int loadDataHelper(int offset, int index);
+	int  loadDataHelper(int offset, int index);
 	void loadPanObj();
 	void loadData3();
 	void loadData4();
@@ -624,6 +707,7 @@ protected:
 	Common::Language _gameLang;
 	uint32 _gameFlags;
 	int _startSlot;
+	uint32 _lastSaveTime;
 
 	bool _quitGame;
 	bool _fastMode;
@@ -633,8 +717,8 @@ protected:
 	int _mainLoopCounter2;
 	int _timerCounter2;
 	int _flagsTable[kFlagsTableSize];
-	int _partNum;
-	int _currentPartNum;
+	Part _part;
+	Part _currentPart;
 	int _locationNum;
 	int _nextLocationNum;
 	bool _gamePaused;
@@ -681,17 +765,19 @@ protected:
 	int _mouseIdleCounter;
 	bool _leftMouseButtonPressed;
 	bool _rightMouseButtonPressed;
+	bool _mouseWheelUp;
+	bool _mouseWheelDown;
 	int _lastKeyPressed;
 	bool _inputKeys[kInputKeyCount];
-	int _cursorNum;
-	int _cursorType;
+	CursorStyle _cursorStyle;
+	CursorState _cursorState;
 	bool _updateCursorFlag;
 
-	int _panelNum;
-	int _panelState;
+	PanelStyle _panelStyle;
+	PanelState _panelState;
+	PanelType  _panelType;
 	bool _forceRedrawPanelItems;
 	int _redrawPanelItemsCounter;
-	int _switchPanelFlag;
 	int _panelObjectsOffsetTable[50];
 	int _switchPanelCounter;
 	int _conversationOptionsCount;
@@ -745,7 +831,9 @@ protected:
 	int _pendingActionDelay;
 	int _charPositionFlagNum;
 	int _charPositionFlagValue;
-	int _actionVerb;
+	Verb _actionVerb;
+	Verb _currentActionVerb;
+	Verb _previousActionVerb;
 	int _nextAction;
 	int _selectedObjectNum;
 	int _selectedObjectType;
@@ -812,8 +900,6 @@ protected:
 	int _characterAnimationsTable[200];
 	int _characterStateTable[200];
 	int _backgroundSprOffset;
-	int _currentActionVerb;
-	int _previousActionVerb;
 	int _mainSpritesBaseOffset;
 	int _currentSpriteAnimationLength;
 	int _currentSpriteAnimationFrame;

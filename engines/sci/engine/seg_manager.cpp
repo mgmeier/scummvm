@@ -275,41 +275,20 @@ const char *SegManager::getObjectName(reg_t pos) {
 	if (nameReg.isNull())
 		return "<no name>";
 
-	const char *name = nullptr;
-
-	if (nameReg.getSegment()) {
-#ifdef ENABLE_SCI32
-		// At least Torin script 64000 creates objects with names that are
-		// pointed to dynamically generated strings which are freed before the
-		// objects themselves are freed. This causes a crash when using
-		// `findObjectByName`, since the name of the object is no longer valid
-		if (nameReg.getSegment() != _arraysSegId ||
-			_heap[_arraysSegId]->isValidOffset(nameReg.getOffset())) {
-#endif
-			name = derefString(nameReg);
-#ifdef ENABLE_SCI32
-		}
-#endif
-	}
+	const char *name = derefString(nameReg);
 
 	if (!name) {
-		// Crazy Nick Laura Bow is missing some object names needed for the static
-		// selector vocabulary
-		if (g_sci->getGameId() == GID_CNICK_LAURABOW && pos == make_reg(1, 0x2267))
-			return "Character";
-		else
-			return "<invalid name>";
+		return "<invalid name>";
 	}
 
 	return name;
 }
 
-reg_t SegManager::findObjectByName(const Common::String &name, int index) {
+Common::Array<reg_t> SegManager::findObjectsByName(const Common::String &name) {
 	Common::Array<reg_t> result;
-	uint i;
 
 	// Now all values are available; iterate over all objects.
-	for (i = 0; i < _heap.size(); i++) {
+	for (uint i = 0; i < _heap.size(); i++) {
 		const SegmentObj *mobj = _heap[i];
 
 		if (!mobj)
@@ -340,12 +319,18 @@ reg_t SegManager::findObjectByName(const Common::String &name, int index) {
 		}
 	}
 
+	return result;
+}
+
+reg_t SegManager::findObjectByName(const Common::String &name, int index) {
+	Common::Array<reg_t> result = findObjectsByName(name);
+
 	if (result.empty())
 		return NULL_REG;
 
 	if (result.size() > 1 && index < 0) {
 		debug("findObjectByName(%s): multiple matches:", name.c_str());
-		for (i = 0; i < result.size(); i++)
+		for (uint i = 0; i < result.size(); i++)
 			debug("  %3x: [%04x:%04x]", i, PRINT_REG(result[i]));
 		return NULL_REG; // Ambiguous
 	}
@@ -629,7 +614,25 @@ static inline void setChar(const SegmentRef &ref, uint offset, byte value) {
 		val->setOffset((val->getOffset() & 0xff00) | value);
 }
 
-// TODO: memcpy, strcpy and strncpy could maybe be folded into a single function
+template <bool STRING>
+static void forwardCopy(byte *dest, const byte *src, size_t n) {
+	const bool zeroPad = (STRING && n != 0xFFFFFFFFU);
+
+	while (n) {
+		--n;
+		const byte b = *src++;
+		*dest++ = b;
+		if (STRING && b == '\0') {
+			break;
+		}
+	}
+	if (zeroPad) {
+		while (n--) {
+			*dest++ = '\0';
+		}
+	}
+}
+
 void SegManager::strncpy(reg_t dest, const char* src, size_t n) {
 	SegmentRef dest_r = dereference(dest);
 	if (!dest_r.isValid()) {
@@ -639,11 +642,7 @@ void SegManager::strncpy(reg_t dest, const char* src, size_t n) {
 
 
 	if (dest_r.isRaw) {
-		// raw -> raw
-		if (n == 0xFFFFFFFFU)
-			::strcpy((char *)dest_r.raw, src);
-		else
-			::strncpy((char *)dest_r.raw, src, n);
+		forwardCopy<true>(dest_r.raw, (const byte *)src, n);
 	} else {
 		// raw -> non-raw
 		for (uint i = 0; i < n; i++) {
@@ -726,7 +725,7 @@ void SegManager::memcpy(reg_t dest, const byte* src, size_t n) {
 
 	if (dest_r.isRaw) {
 		// raw -> raw
-		::memcpy((char *)dest_r.raw, src, n);
+		forwardCopy<false>(dest_r.raw, src, n);
 	} else {
 		// raw -> non-raw
 		for (uint i = 0; i < n; i++)
@@ -782,7 +781,7 @@ void SegManager::memcpy(byte *dest, reg_t src, size_t n) {
 
 	if (src_r.isRaw) {
 		// raw -> raw
-		::memcpy(dest, src_r.raw, n);
+		forwardCopy<false>(dest, src_r.raw, n);
 	} else {
 		// non-raw -> raw
 		for (uint i = 0; i < n; i++) {
@@ -1016,6 +1015,9 @@ reg_t SegManager::getClassAddress(int classnr, ScriptLoadType lock, uint16 calle
 			getScriptSegment(the_class->script, lock);
 
 			if (!the_class->reg.getSegment()) {
+				if (lock == SCRIPT_GET_DONT_LOAD)
+					return NULL_REG;
+
 				error("[VM] Trying to instantiate class %x by instantiating script 0x%x (%03d) failed", classnr, the_class->script, the_class->script);
 			}
 		} else
@@ -1034,7 +1036,7 @@ int SegManager::instantiateScript(int scriptNum) {
 			scr->incrementLockers();
 			return segmentId;
 		} else {
-			scr->freeScript();
+			scr->freeScript(true);
 		}
 	} else {
 		scr = allocateScript(scriptNum, &segmentId);

@@ -21,7 +21,9 @@
  */
 
 #include "titanic/star_control/star_closeup.h"
+#include "titanic/star_control/error_code.h"
 #include "titanic/star_control/star_camera.h"
+#include "titanic/star_control/surface_area.h"
 #include "titanic/titanic.h"
 
 namespace Titanic {
@@ -193,7 +195,7 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 		CSurfaceArea *surfaceArea, CStarCamera *camera) {
 	const int VALUES[] = { 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4 };
 	float val1 = camera->getThreshold();
-	int val2 = camera->proc27();
+	StarColor starColor = camera->getStarColor();
 	if (!_flag)
 		return;
 
@@ -290,15 +292,16 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 				}
 			}
 
-			if (val2 <= 0) {
-				surfaceArea->setMode(SA_NONE);
+			switch (starColor) {
+			case WHITE: 
+				surfaceArea->setMode(SA_SOLID);
 				surfaceArea->_pixel = MKTAG_BE(entryP->_pixel1, entryP->_pixel2,
 					entryP->_pixel3, 0);
 				surfaceArea->setColorFromPixel();
 
 				for (int ctr2 = 0; ctr2 < size2; ++ctr2) {
 					GridEntry &gridEntry = _grid[ctr2];
-					tempV = camera->proc28(2, gridEntry);
+					tempV = camera->getRelativePos(2, gridEntry);
 					gridEntry._position._x = tempV._x;
 					gridEntry._position._y = tempV._y + vector2._y;
 				}
@@ -309,18 +312,19 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 					GridEntry &grid2 = _grid[d1._index2];
 
 					if (grid1._z > val1 && grid2._z > val1) {
-						surfaceArea->fillRect(FRect(grid1._position._x, grid1._position._y,
+						surfaceArea->drawLine(FRect(grid1._position._x, grid1._position._y,
 							grid2._position._x, grid2._position._y));
 					}
 				}
-			} else {
-				surfaceArea->setMode(SA_NONE);
+				break;
+			case PINK:
+				surfaceArea->setMode(SA_SOLID);
 				surfaceArea->_pixel = entryP->_pixel1;
 				surfaceArea->setColorFromPixel();
 
 				for (int ctr2 = 0; ctr2 < size2; ++ctr2) {
 					GridEntry &gridEntry = _grid[ctr2];
-					tempV = camera->proc28(0, gridEntry);
+					tempV = camera->getRelativePos(0, gridEntry);
 					gridEntry._position._x = tempV._x + vector2._x;
 					gridEntry._position._y = tempV._y + vector2._y;
 				}
@@ -331,7 +335,7 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 					GridEntry &grid2 = _grid[d1._index2];
 
 					if (grid1._z > val1 && grid2._z > val1) {
-						surfaceArea->fillRect(FRect(grid1._position._x, grid1._position._y,
+						surfaceArea->drawLine(FRect(grid1._position._x, grid1._position._y,
 							grid2._position._x, grid2._position._y));
 					}
 				}
@@ -342,7 +346,7 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 
 				for (int ctr2 = 0; ctr2 < size2; ++ctr2) {
 					GridEntry &gridEntry = _grid[ctr2];
-					tempV = camera->proc28(1, gridEntry);
+					tempV = camera->getRelativePos(1, gridEntry);
 					gridEntry._position._x = tempV._x + vector2._x;
 					gridEntry._position._y = tempV._y + vector2._y;
 				}
@@ -353,10 +357,13 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 					GridEntry &grid2 = _grid[d1._index2];
 
 					if (grid1._z > val1 && grid2._z > val1) {
-						surfaceArea->fillRect(FRect(grid1._position._x, grid1._position._y,
+						surfaceArea->drawLine(FRect(grid1._position._x, grid1._position._y,
 							grid2._position._x, grid2._position._y));
 					}
 				}
+				break;
+			default:
+				assert(0);
 			}
 		}
 	}
@@ -395,14 +402,15 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 			+ newV._x * pose._row1._z + pose._vector._z;
 	}
 
-	if (val2 <= 0) {
-		surfaceArea->setMode(SA_NONE);
+	switch(starColor) {
+	case WHITE:
+		surfaceArea->setMode(SA_SOLID);
 		surfaceArea->_pixel = pixel1;
 		surfaceArea->setColorFromPixel();
 
 		for (uint ctr = 0; ctr < entry._data2.size(); ++ctr) {
 			GridEntry &gridEntry = _grid[ctr];
-			tempV = camera->proc28(2, gridEntry);
+			tempV = camera->getRelativePos(2, gridEntry);
 			gridEntry._position._x = tempV._x + vector2._x;
 			gridEntry._position._y = tempV._y + vector2._y;
 		}
@@ -413,18 +421,19 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 			GridEntry &grid2 = _grid[d1._index2];
 
 			if (grid2._z > val1 && grid1._z > val1) {
-				surfaceArea->fillRect(FRect(grid1._position._x, grid1._position._y,
+				surfaceArea->drawLine(FRect(grid1._position._x, grid1._position._y,
 					grid2._position._x, grid2._position._y));
 			}
-		}
-	} else {
-		surfaceArea->setMode(SA_NONE);
+		}		
+		break;
+	case PINK:
+		surfaceArea->setMode(SA_SOLID);
 		surfaceArea->_pixel = pixel2;
 		surfaceArea->setColorFromPixel();
 
 		for (uint ctr = 0; ctr < entry._data2.size(); ++ctr) {
 			GridEntry &gridEntry = _grid[ctr];
-			tempV = camera->proc28(2, gridEntry);
+			tempV = camera->getRelativePos(2, gridEntry);
 			gridEntry._position._x = tempV._x + vector2._x;
 			gridEntry._position._y = tempV._y + vector2._y;
 		}
@@ -435,7 +444,7 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 			GridEntry &grid2 = _grid[d1._index2];
 
 			if (grid2._z > val1 && grid1._z > val1) {
-				surfaceArea->fillRect(FRect(grid1._position._x, grid1._position._y,
+				surfaceArea->drawLine(FRect(grid1._position._x, grid1._position._y,
 					grid2._position._x, grid2._position._y));
 			}
 		}
@@ -446,7 +455,7 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 
 		for (uint ctr = 0; ctr < entry._data2.size(); ++ctr) {
 			GridEntry &gridEntry = _grid[ctr];
-			tempV = camera->proc28(2, gridEntry);
+			tempV = camera->getRelativePos(2, gridEntry);
 			gridEntry._position._x = tempV._x + vector2._x;
 			gridEntry._position._y = tempV._y + vector2._y;
 		}
@@ -457,10 +466,13 @@ void CStarCloseup::draw(const FPose &pose, const FVector &vector, const FVector 
 			GridEntry &grid2 = _grid[d1._index2];
 
 			if (grid2._z > val1 && grid1._z > val1) {
-				surfaceArea->fillRect(FRect(grid1._position._x, grid1._position._y,
+				surfaceArea->drawLine(FRect(grid1._position._x, grid1._position._y,
 					grid2._position._x, grid2._position._y));
 			}
 		}
+		break;
+	default:
+		assert(0);
 	}
 }
 

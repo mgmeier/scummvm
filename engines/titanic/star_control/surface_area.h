@@ -31,10 +31,18 @@
 namespace Titanic {
 
 enum SurfaceAreaMode {
-	SA_NONE = 0, SA_MODE1 = 1, SA_MODE2 = 2, SA_MODE3 = 3, SA_MODE4 = 4
+	SA_SOLID = 0, SA_MODE1 = 1, SA_MODE2 = 2, SA_XOR = 3, SA_MODE4 = 4
 };
 
 class CSurfaceArea {
+	template<typename T>
+	static void plotPoint(int x, int y, int color, void *data) {
+		CSurfaceArea *sa = (CSurfaceArea *)data;
+		if (x >= 0 && x < sa->_width && y >= 0 && y < sa->_height) {
+			T *ptr = (T *)sa->_surface->getBasePtr(x, y);
+			*ptr = (*ptr & sa->_colorMask) ^ sa->_color;
+		}
+	}
 private:
 	/**
 	 * Initialize data for the class
@@ -48,10 +56,7 @@ private:
 
 	void pixelToRGB(uint pixel, uint *rgb);
 
-	/**
-	 * Alters the pixels of a specified rectangle using a passed and and xor mask
-	 */
-	static void colorRect(Graphics::Surface &s, const Common::Rect &r, uint andMask, uint xorMask);
+	Graphics::PixelFormat getPixelFormat() const;
 public:
 	int _field0;
 	int _width;
@@ -71,6 +76,7 @@ public:
 	uint _color;
 	SurfaceAreaMode _mode;
 	Rect _bounds;
+	Graphics::Surface *_surface;
 public:
 	CSurfaceArea(CVideoSurface *surface);
 
@@ -85,9 +91,17 @@ public:
 	void setColorFromPixel();
 
 	/**
-	 * Fills a rectangular area
+	 * Draws a line on the surface
 	 */
-	double fillRect(const FRect &rect);
+	double drawLine(const FPoint &pt1, const FPoint &pt2);
+
+	/**
+	 * Draws a line on the surface from the rect's top-left
+	 * to bottom-right corners
+	 */
+	double drawLine(const FRect &rect) {
+		return drawLine(FPoint(rect.left, rect.top), FPoint(rect.right, rect.bottom));
+	}
 };
 
 } // End of namespace Titanic

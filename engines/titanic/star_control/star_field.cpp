@@ -28,26 +28,26 @@
 namespace Titanic {
 
 CStarField::CStarField() : _points1On(false), _points2On(false), _mode(MODE_STARFIELD),
-		_showCrosshairs(true), _val5(0), _isSolved(false) {
+		_showBox(true), _closeToMarker(false), _isSolved(false) {
 }
 
 void CStarField::load(SimpleFile *file) {
-	_sub7.load(file);
-	_sub8.load(file);
+	_markers.load(file);
+	_crosshairs.load(file);
 	_points1On = file->readNumber();
 	_points2On = file->readNumber();
 	_mode = (StarMode)file->readNumber();
-	_showCrosshairs = file->readNumber();
+	_showBox = file->readNumber();
 	_isSolved = file->readNumber();
 }
 
 void CStarField::save(SimpleFile *file, int indent) {
-	_sub7.save(file, indent);
-	_sub8.save(file, indent);
+	_markers.save(file, indent);
+	_crosshairs.save(file, indent);
 	file->writeNumberLine(_points1On, indent);
 	file->writeNumberLine(_points2On, indent);
 	file->writeNumberLine(_mode, indent);
-	file->writeNumberLine(_showCrosshairs, indent);
+	file->writeNumberLine(_showBox, indent);
 	file->writeNumberLine(_isSolved, indent);
 }
 
@@ -66,11 +66,11 @@ bool CStarField::initDocument() {
 void CStarField::render(CVideoSurface *surface, CStarCamera *camera) {
 	CSurfaceArea surfaceArea(surface);
 	draw(&surfaceArea, camera, &_starCloseup);
-	if (_showCrosshairs)
-		drawCrosshairs(&surfaceArea);
+	if (_showBox)
+		drawBox(&surfaceArea);
 
-	_sub7.draw(&surfaceArea, camera, nullptr);
-	_sub8.draw(&surfaceArea);
+	_markers.draw(&surfaceArea, camera, nullptr);
+	_crosshairs.draw(&surfaceArea);
 
 	if (_points2On)
 		_points2.draw(&surfaceArea, camera);
@@ -112,57 +112,66 @@ void CStarField::setMode(StarMode mode) {
 	_mode = mode;
 }
 
-void CStarField::toggleCrosshairs() {
-	_showCrosshairs = !_showCrosshairs;
+void CStarField::toggleBox() {
+	_showBox = !_showBox;
 }
 
-bool CStarField::setCrosshairs(bool isVisible) {
-	bool oldVal = _showCrosshairs;
-	_showCrosshairs = isVisible;
+bool CStarField::setBoxVisible(bool isVisible) {
+	bool oldVal = _showBox;
+	_showBox = isVisible;
 	return oldVal;
 }
 
-int CStarField::get88() const {
-	return _sub8._field8;
+int CStarField::getMatchedIndex() const {
+	return _crosshairs._matchIndex;
 }
 
-int CStarField::get5() const {
-	return _val5;
+bool CStarField::isCloseToMarker() const {
+	return _closeToMarker;
 }
 
 void CStarField::setSolved() {
-	_isSolved = _sub8._field8 == 2;
+	_isSolved = _crosshairs._matchIndex >= 2;
 }
 
 bool CStarField::isSolved() const {
 	return _isSolved;
 }
 
+bool CStarField::isSkipped() const {
+	return _crosshairs.isSkipped();
+}
+
+void CStarField::skipPuzzle() {
+	_crosshairs._matchIndex = 3;
+	setSolved();
+}
+
 void CStarField::fn1(CErrorCode *errorCode) {
 	_starCloseup.proc3(errorCode);
 }
 
-void CStarField::drawCrosshairs(CSurfaceArea *surfaceArea) {
+void CStarField::drawBox(CSurfaceArea *surfaceArea) {
 	uint oldPixel = surfaceArea->_pixel;
 	surfaceArea->_pixel = 0x323232;
 	surfaceArea->setColorFromPixel();
 
-	surfaceArea->fillRect(FRect(202.60417, 63.75, 397.39584, 63.75));
-	surfaceArea->fillRect(FRect(202.60417, 276.25, 397.39584, 276.25));
-	surfaceArea->fillRect(FRect(193.75, 72.604164, 193.75, 267.39584));
-	surfaceArea->fillRect(FRect(406.25, 72.604164, 406.25, 267.39584));
-	surfaceArea->fillRect(FRect(202.60417, 63.75, 202.60417, 68.177086));
-	surfaceArea->fillRect(FRect(397.39584, 63.75, 397.39584, 68.177086));
-	surfaceArea->fillRect(FRect(202.60417, 276.25, 202.60417, 271.82291));
-	surfaceArea->fillRect(FRect(397.39584, 276.25, 397.39584, 271.82291));
-	surfaceArea->fillRect(FRect(193.75, 72.604164, 198.17708, 72.604164));
-	surfaceArea->fillRect(FRect(193.75, 267.39584, 198.17708, 267.39584));
-	surfaceArea->fillRect(FRect(406.25, 72.604164, 401.82291, 72.604164));
-	surfaceArea->fillRect(FRect(406.25, 267.39584, 401.82291, 267.39584));
-	surfaceArea->fillRect(FRect(300.0, 63.75, 300.0, 54.895832));
-	surfaceArea->fillRect(FRect(300.0, 276.25, 300.0, 285.10416));
-	surfaceArea->fillRect(FRect(193.75, 170.0, 184.89583, 170.0));
-	surfaceArea->fillRect(FRect(406.25, 170.0, 415.10416, 170.0));
+	surfaceArea->drawLine(FRect(202.60417, 63.75, 397.39584, 63.75));
+	surfaceArea->drawLine(FRect(202.60417, 276.25, 397.39584, 276.25));
+	surfaceArea->drawLine(FRect(193.75, 72.604164, 193.75, 267.39584));
+	surfaceArea->drawLine(FRect(406.25, 72.604164, 406.25, 267.39584));
+	surfaceArea->drawLine(FRect(202.60417, 63.75, 202.60417, 68.177086));
+	surfaceArea->drawLine(FRect(397.39584, 63.75, 397.39584, 68.177086));
+	surfaceArea->drawLine(FRect(202.60417, 276.25, 202.60417, 271.82291));
+	surfaceArea->drawLine(FRect(397.39584, 276.25, 397.39584, 271.82291));
+	surfaceArea->drawLine(FRect(193.75, 72.604164, 198.17708, 72.604164));
+	surfaceArea->drawLine(FRect(193.75, 267.39584, 198.17708, 267.39584));
+	surfaceArea->drawLine(FRect(406.25, 72.604164, 401.82291, 72.604164));
+	surfaceArea->drawLine(FRect(406.25, 267.39584, 401.82291, 267.39584));
+	surfaceArea->drawLine(FRect(300.0, 63.75, 300.0, 54.895832));
+	surfaceArea->drawLine(FRect(300.0, 276.25, 300.0, 285.10416));
+	surfaceArea->drawLine(FRect(193.75, 170.0, 184.89583, 170.0));
+	surfaceArea->drawLine(FRect(406.25, 170.0, 415.10416, 170.0));
 
 	surfaceArea->_pixel = oldPixel;
 	surfaceArea->setColorFromPixel();
@@ -170,58 +179,64 @@ void CStarField::drawCrosshairs(CSurfaceArea *surfaceArea) {
 
 void CStarField::fn4(CSurfaceArea *surfaceArea, CStarCamera *camera) {
 	FVector v1, v2, v3;
-	_val5 = 0;
+	_closeToMarker = false;
 
 	if (_mode == MODE_STARFIELD) {
 		if (fn5(surfaceArea, camera, v1, v2, v3) > -1.0) {
 			surfaceArea->_pixel = 0xA0A0;
 			surfaceArea->setColorFromPixel();
-			surfaceArea->fillRect(FRect(v1._x, v1._y, v3._x, v3._y));
+			surfaceArea->drawLine(FRect(v1._x, v1._y, v3._x, v3._y));
 		}
 	}
 }
 
 double CStarField::fn5(CSurfaceArea *surfaceArea, CStarCamera *camera,
 		FVector &v1, FVector &v2, FVector &v3) {
-	if (_sub8._fieldC < 0)
+	if (_crosshairs.isEmpty())
+		// No crosshairs selection yet
+		return -1.0;
+	if (_crosshairs._entryIndex == _crosshairs._matchIndex)
+		// Trying to re-lock on a previously locked star
 		return -1.0;
 
-	const CBaseStarEntry *dataP = _sub7.getDataPtr(_sub8._fieldC);
+	const CBaseStarEntry *dataP = _markers.getDataPtr(_crosshairs._entryIndex);
 	v2 = dataP->_position;
-	FVector tv = camera->proc29(2, v2);
+	FVector tv = camera->getRelativePosNoCentering(2, v2); // First argument is not getting used in CViewport::fn16
 
 	if (camera->getThreshold() >= tv._z)
 		return -1.0;
 
-	tv = camera->proc28(2, tv);
+	tv = camera->getRelativePos(2, tv);
 
 	v1 = FVector(tv._x + surfaceArea->_centroid._x,
 		tv._y + surfaceArea->_centroid._y, tv._z);
-	FPoint pt = _sub8.getPosition();
+	FPoint pt = _crosshairs.getPosition();
 	v3 = FVector(pt._x, pt._y, 1.0);
 
 	double incr = (v1._x - pt._x) * (v1._x - pt._x);
 	if (incr > 3600.0)
 		return -1.0;
-	if ((v1._y - pt._y) * (v1._y - pt._y) + incr > 3600.0)
+
+	incr += (v1._y - pt._y) * (v1._y - pt._y);
+	if (incr > 3600.0)
 		return -1.0;
 
-	_val5 = 1;
-	return v1._y - pt._y;
+	_closeToMarker = true;
+	return incr;
 }
 
 void CStarField::fn6(CVideoSurface *surface, CStarCamera *camera) {
 	CSurfaceArea surfaceArea(surface);
-	_sub8.fn1(this, &surfaceArea, camera);
+	_crosshairs.fn1(this, &surfaceArea, camera);
 }
 
-void CStarField::fn7() {
-	_sub8.fn3();
+void CStarField::incMatches() {
+	_crosshairs.incMatches();
 	setSolved();
 }
 
 void CStarField::fn8(CVideoSurface *surface) {
-	_sub8.fn2(surface, this, &_sub7);
+	_crosshairs.fn2(surface, this, &_markers);
 	setSolved();
 }
 
@@ -231,9 +246,9 @@ bool CStarField::mouseButtonDown(CVideoSurface *surface, CStarCamera *camera,
 		CSurfaceArea surfaceArea(surface);
 		return selectStar(&surfaceArea, camera, pt);
 	} else {
-		int starNum = _sub8.indexOf(pt);
+		int starNum = _crosshairs.indexOf(pt);
 		if (starNum >= 0) {
-			_sub8.selectStar(starNum, surface, this, &_sub7);
+			_crosshairs.selectStar(starNum, surface, this, &_markers);
 			return true;
 		}
 

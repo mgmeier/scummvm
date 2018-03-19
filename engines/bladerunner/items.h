@@ -33,22 +33,25 @@ namespace BladeRunner {
 class Items {
 	BladeRunnerEngine *_vm;
 
-	Common::Array<Item*> _items;
+	Common::Array<Item *> _items;
 
 public:
 	Items(BladeRunnerEngine *vm);
 	~Items();
 
-	void getXYZ(int itemId, float *x, float *y, float *z);
-	void getWidthHeight(int itemId, int *width, int *height);
+	void getXYZ(int itemId, float *x, float *y, float *z) const;
+	void getWidthHeight(int itemId, int *width, int *height) const;
 
 	void tick();
-	bool addToWorld(int itemId, int animationId, int setId, Vector3 position, int facing, int height, int width, bool isTargetableFlag, bool isVisibleFlag, bool isPoliceMazeEnemyFlag, bool addToSetFlag);
+	bool addToWorld(int itemId, int animationId, int setId, Vector3 position, int facing, int height, int width, bool isTargetFlag, bool isVisible, bool isPoliceMazeEnemy, bool addToSetFlag);
 	bool addToSet(int itemId);
 	bool remove(int itemId);
 
+	bool isTarget(int itemId) const;
+	int findTargetUnderMouse(int mouseX, int mouseY) const;
+
 private:
-	int findItem(int itemId);
+	int findItem(int itemId) const;
 };
 
 } // End of namespace BladeRunner

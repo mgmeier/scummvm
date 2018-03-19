@@ -47,7 +47,7 @@ Script::~Script() {
 	freeScript();
 }
 
-void Script::freeScript() {
+void Script::freeScript(const bool keepLocalsSegment) {
 	_nr = 0;
 
 	_buf.clear();
@@ -59,7 +59,9 @@ void Script::freeScript() {
 	_numSynonyms = 0;
 
 	_localsOffset = 0;
-	_localsSegment = 0;
+	if (!keepLocalsSegment) {
+		_localsSegment = 0;
+	}
 	_localsBlock = NULL;
 	_localsCount = 0;
 
@@ -110,25 +112,12 @@ void Script::load(int script_nr, ResourceManager *resMan, ScriptPatcher *scriptP
 
 		// As mentioned above, the script and the heap together should not exceed 64KB
 		if (script->size() + heap->size() > 65535)
-			error("Script and heap sizes combined exceed 64K. This means a fundamental "
+			error("Script and heap %d sizes combined exceed 64K. This means a fundamental "
 					"design bug was made regarding SCI1.1 and newer games.\n"
-					"Please report this error to the ScummVM team");
-	} else if (getSciVersion() == SCI_VERSION_3) {
-		// Check for scripts over 64KB. These won't work with the current 16-bit address
-		// scheme. We need an overlaying mechanism, or a mechanism to split script parts
-		// in different segments to handle these. For now, simply stop when such a script
-		// is found.
-		//
-		// Known large SCI 3 scripts are:
-		// Lighthouse: 9, 220, 270, 351, 360, 490, 760, 765, 800
-		// LSL7: 240, 511, 550
-		// Phantasmagoria 2: none (hooray!)
-		// RAMA: 70
-		//
-		// TODO: Remove this once such a mechanism is in place
-		if (script->size() > 65535)
-			warning("TODO: SCI script %d is over 64KB - it's %u bytes long. This can't "
-			      "be fully handled at the moment", script_nr, script->size());
+					"Please report this error to the ScummVM team", script_nr);
+	} else if (getSciVersion() == SCI_VERSION_3 && script->size() > 0x3FFFF) {
+		error("Script %d size exceeds 256K (it is %u bytes).\n"
+			  "Please report this error to the ScummVM team", script_nr, script->size());
 	}
 
 	uint extraLocalsWorkaround = 0;
@@ -196,19 +185,20 @@ void Script::load(int script_nr, ResourceManager *resMan, ScriptPatcher *scriptP
 			_exports = _buf->subspan<const uint16>(kSci11ExportTableOffset, _numExports * sizeof(uint16));
 		}
 
-		_localsOffset = _script.size() + 4;
+		_localsOffset = getHeapOffset() + 4;
 		_localsCount = _buf->getUint16SEAt(_localsOffset - 2);
 	} else if (getSciVersion() == SCI_VERSION_3) {
 		_localsCount = _buf->getUint16LEAt(12);
 		_numExports = _buf->getUint16LEAt(20);
 		if (_numExports) {
 			_exports = _buf->subspan<const uint16>(22, _numExports * sizeof(uint16));
-			// SCI3 local variables always start dword-aligned
-			if (_numExports % 2)
-				_localsOffset = 22 + _numExports * 2;
-			else
-				_localsOffset = 24 + _numExports * 2;
 		}
+
+		// SCI3 local variables always start dword-aligned
+		if (_numExports % 2)
+			_localsOffset = 22 + _numExports * sizeof(uint16);
+		else
+			_localsOffset = 24 + _numExports * sizeof(uint16);
 	}
 
 	// WORKAROUND: Increase locals, if needed (check above)
@@ -228,8 +218,7 @@ void Script::load(int script_nr, ResourceManager *resMan, ScriptPatcher *scriptP
 			_localsOffset = 0;
 
 		if (_localsOffset + _localsCount * 2 + 1 >= (int)_buf->size()) {
-			error("Locals extend beyond end of script: offset %04x, count %d vs size %d", _localsOffset, _localsCount, (int)_buf->size());
-			//_localsCount = (_bufSize - _localsOffset) >> 1;
+			error("Locals extend beyond end of script %d: offset %04x, count %u vs size %u", _nr, _localsOffset, _localsCount, _buf->size());
 		}
 	}
 
@@ -509,6 +498,7 @@ void Script::identifyOffsets() {
 			_offsetLookupStringCount++;
 		}
 
+#ifdef ENABLE_SCI32
 	} else if (getSciVersion() == SCI_VERSION_3) {
 		// SCI3
 		uint32 sci3StringOffset = 0;
@@ -518,6 +508,7 @@ void Script::identifyOffsets() {
 		if (_buf->size() < 22)
 			error("Script::identifyOffsets(): script %d smaller than expected SCI3-header", _nr);
 
+		_codeOffset = _buf->getUint32LEAt(0);
 		sci3StringOffset = _buf->getUint32LEAt(4);
 		sci3RelocationOffset = _buf->getUint32LEAt(8);
 
@@ -619,9 +610,11 @@ void Script::identifyOffsets() {
 				}
 			}
 		}
+#endif
 	}
 }
 
+#ifdef ENABLE_SCI32
 SciSpan<const byte> Script::getSci3ObjectsPointer() {
 	SciSpan<const byte> ptr;
 
@@ -639,15 +632,16 @@ SciSpan<const byte> Script::getSci3ObjectsPointer() {
 
 	return ptr;
 }
+#endif
 
-Object *Script::getObject(uint16 offset) {
+Object *Script::getObject(uint32 offset) {
 	if (_objects.contains(offset))
 		return &_objects[offset];
 	else
 		return 0;
 }
 
-const Object *Script::getObject(uint16 offset) const {
+const Object *Script::getObject(uint32 offset) const {
 	if (_objects.contains(offset))
 		return &_objects[offset];
 	else
@@ -655,23 +649,18 @@ const Object *Script::getObject(uint16 offset) const {
 }
 
 Object *Script::scriptObjInit(reg_t obj_pos, bool fullObjectInit) {
-	if (getSciVersion() < SCI_VERSION_1_1 && fullObjectInit)
-		obj_pos.incOffset(8);	// magic offset (SCRIPT_OBJECT_MAGIC_OFFSET)
-
 	if (obj_pos.getOffset() >= _buf->size())
-		error("Attempt to initialize object beyond end of script");
+		error("Attempt to initialize object beyond end of script %d (%u >= %u)", _nr, obj_pos.getOffset(), _buf->size());
 
 	// Get the object at the specified position and init it. This will
 	// automatically "allocate" space for it in the _objects map if necessary.
 	Object *obj = &_objects[obj_pos.getOffset()];
-	obj->init(*_buf, obj_pos, fullObjectInit);
+	obj->init(*this, obj_pos, fullObjectInit);
 
 	return obj;
 }
 
-// This helper function is used by Script::relocateLocal and Object::relocate
-// Duplicate in segment.cpp and script.cpp
-static bool relocateBlock(Common::Array<reg_t> &block, int block_location, SegmentId segment, int location, size_t scriptSize) {
+bool relocateBlock(Common::Array<reg_t> &block, int block_location, SegmentId segment, int location, uint32 heapOffset) {
 	int rel = location - block_location;
 
 	if (rel < 0)
@@ -686,21 +675,20 @@ static bool relocateBlock(Common::Array<reg_t> &block, int block_location, Segme
 		error("Attempt to relocate odd variable #%d.5e (relative to %04x)\n", idx, block_location);
 		return false;
 	}
-	block[idx].setSegment(segment); // Perform relocation
-	if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1_LATE)
-		block[idx].incOffset(scriptSize);
 
+	block[idx].setSegment(segment);
+	block[idx].incOffset(heapOffset);
 	return true;
 }
 
+#ifdef ENABLE_SCI32
 int Script::relocateOffsetSci3(uint32 offset) const {
 	int relocStart = _buf->getUint32LEAt(8);
 	int relocCount = _buf->getUint16LEAt(18);
-	SciSpan <const byte> seeker = _buf->subspan(relocStart);
+	SciSpan<const byte> seeker = _buf->subspan(relocStart);
 
 	for (int i = 0; i < relocCount; ++i) {
 		if (seeker.getUint32SEAt(0) == offset) {
-			// TODO: Find out what UINT16 at (seeker + 8) means
 			return _buf->getUint16SEAt(offset) + seeker.getUint32SEAt(4);
 		}
 		seeker += 10;
@@ -708,78 +696,147 @@ int Script::relocateOffsetSci3(uint32 offset) const {
 
 	return -1;
 }
+#endif
 
-bool Script::relocateLocal(SegmentId segment, int location) {
+bool Script::relocateLocal(SegmentId segment, int location, uint32 offset) {
 	if (_localsBlock)
-		return relocateBlock(_localsBlock->_locals, _localsOffset, segment, location, _script.size());
+		return relocateBlock(_localsBlock->_locals, _localsOffset, segment, location, offset);
 	else
 		return false;
 }
 
-void Script::relocateSci0Sci21(reg_t block) {
-	SciSpan<const byte> heap = *_buf;
-	uint16 heapOffset = 0;
+uint32 Script::getRelocationOffset(const uint32 offset) const {
+	if (getSciVersion() == SCI_VERSION_3) {
+		SciSpan<const byte> relocStart = _buf->subspan(_buf->getUint32SEAt(8));
+		const uint relocCount = _buf->getUint16SEAt(18);
 
-	if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1_LATE) {
-		heap = _heap;
-		heapOffset = _script.size();
+		for (uint i = 0; i < relocCount; ++i) {
+			if (offset == relocStart.getUint32SEAt(0)) {
+				return relocStart.getUint32SEAt(4);
+			}
+			relocStart += 10;
+		}
+	} else {
+		const SciSpan<const uint16> relocTable = getRelocationTableSci0Sci21();
+		for (uint i = 0; i < relocTable.size(); ++i) {
+			if (relocTable.getUint16SEAt(i) == offset) {
+				return getHeapOffset();
+			}
+		}
 	}
 
-	if (block.getOffset() >= (uint16)heap.size() ||
-		heap.getUint16SEAt(block.getOffset()) * 2 + block.getOffset() >= (uint16)heap.size())
-	    error("Relocation block outside of script");
+	return kNoRelocation;
+}
 
-	int count = heap.getUint16SEAt(block.getOffset());
-	int exportIndex = 0;
-	int pos = 0;
+const SciSpan<const uint16> Script::getRelocationTableSci0Sci21() const {
+	SciSpan<const byte> relocationBlock;
+	uint16 numEntries;
+	uint16 dataOffset;
 
-	for (int i = 0; i < count; i++) {
-		pos = heap.getUint16SEAt(block.getOffset() + 2 + (exportIndex * 2)) + heapOffset;
-		// This occurs in SCI01/SCI1 games where usually one export value is
-		// zero. It seems that in this situation, we should skip the export and
-		// move to the next one, though the total count of valid exports remains
-		// the same
-		if (!pos) {
-			exportIndex++;
-			pos = heap.getUint16SEAt(block.getOffset() + 2 + (exportIndex * 2)) + heapOffset;
-			if (!pos)
-				error("Script::relocate(): Consecutive zero exports found");
+	if (getSciVersion() < SCI_VERSION_1_1) {
+		relocationBlock = findBlockSCI0(SCI_OBJ_POINTERS);
+
+		if (!relocationBlock) {
+			return SciSpan<const uint16>();
 		}
+
+		if (relocationBlock != findBlockSCI0(SCI_OBJ_POINTERS, true)) {
+			warning("Script %d has multiple relocation tables", _nr);
+		}
+
+		numEntries = relocationBlock.getUint16SEAt(4);
+
+		if (!numEntries) {
+			return SciSpan<const uint16>();
+		}
+
+		dataOffset = 6;
+
+		// Starting somewhere around SQ1, and continuing through the rest of
+		// SCI1, the relocation table in scripts started including an extra
+		// null entry at the beginning of the table, without a corresponding
+		// increase in the entry count. While this change is consistent in
+		// most of the SCI1mid+ games (all scripts in LSL1, Jones CD,
+		// EQ floppy, SQ1, LSL5, and Ms Astro Chicken have the null entry),
+		// a few games include scripts without the null entry (Castle of Dr
+		// Brain 947 & 997, PQ3 997, KQ5 CD 975 & 997). Since 0 is never a
+		// valid relocation offset, we just skip it if we see it
+		const uint16 firstEntry = relocationBlock.getUint16SEAt(6);
+		if (firstEntry == 0) {
+			dataOffset += 2;
+		}
+	} else if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1_LATE) {
+		relocationBlock = _heap.subspan(_heap.getUint16SEAt(0));
+
+		if (!relocationBlock) {
+			return SciSpan<const uint16>();
+		}
+
+		numEntries = relocationBlock.getUint16SEAt(0);
+
+		if (!numEntries) {
+			return SciSpan<const uint16>();
+		}
+
+		dataOffset = 2;
+	} else {
+		error("Invalid engine version called Script::getRelocationTableSci0Sci21 on script %d", _nr);
+	}
+
+	// This check should work correctly even with SCI1.1+ because the relocation
+	// table is always at the very end of the heap in these games
+	if (dataOffset + numEntries * sizeof(uint16) != relocationBlock.size()) {
+		warning("Script %d unexpected relocation table size %u", _nr, relocationBlock.size());
+	}
+
+	return relocationBlock.subspan<const uint16>(dataOffset, numEntries * sizeof(uint16));
+}
+
+void Script::relocateSci0Sci21(const SegmentId segmentId) {
+	const SciSpan<const uint16> relocEntries = getRelocationTableSci0Sci21();
+
+	const uint32 heapOffset = getHeapOffset();
+
+	for (uint i = 0; i < relocEntries.size(); ++i) {
+		const uint pos = relocEntries.getUint16SEAt(i) + heapOffset;
 
 		// In SCI0-SCI1, script local variables, objects and code are relocated.
 		// We only relocate locals and objects here, and ignore relocation of
 		// code blocks. In SCI1.1 and newer versions, only locals and objects
 		// are relocated.
-		if (!relocateLocal(block.getSegment(), pos)) {
+		if (!relocateLocal(segmentId, pos, getHeapOffset())) {
 			// Not a local? It's probably an object or code block. If it's an
 			// object, relocate it.
 			const ObjMap::iterator end = _objects.end();
 			for (ObjMap::iterator it = _objects.begin(); it != end; ++it)
-				if (it->_value.relocateSci0Sci21(block.getSegment(), pos, _script.size()))
+				if (it->_value.relocateSci0Sci21(segmentId, pos, getHeapOffset()))
 					break;
 		}
-
-		exportIndex++;
 	}
 }
 
-void Script::relocateSci3(reg_t block) {
-	SciSpan<const byte> relocStart = _buf->subspan(_buf->getUint32SEAt(8));
-	//int count = _bufSize - READ_SCI11ENDIAN_UINT32(_buf + 8);
+#ifdef ENABLE_SCI32
+void Script::relocateSci3(const SegmentId segmentId) {
+	SciSpan<const byte> relocEntry = _buf->subspan(_buf->getUint32SEAt(8));
+	const uint relocCount = _buf->getUint16SEAt(18);
 
-	ObjMap::iterator it;
-	for (it = _objects.begin(); it != _objects.end(); ++it) {
-		SciSpan<const byte> seeker = relocStart;
-		while (seeker.size()) {
-			// TODO: Find out what UINT16 at (seeker + 8) means
-			it->_value.relocateSci3(block.getSegment(),
-						seeker.getUint32SEAt(0),
-						seeker.getUint32SEAt(4),
-						_script.size());
-			seeker += 10;
+	for (uint i = 0; i < relocCount; ++i) {
+		const uint location = relocEntry.getUint32SEAt(0);
+		const uint offset = relocEntry.getUint32SEAt(4);
+
+		if (!relocateLocal(segmentId, location, offset)) {
+			const ObjMap::iterator end = _objects.end();
+			for (ObjMap::iterator it = _objects.begin(); it != end; ++it) {
+				if (it->_value.relocateSci3(segmentId, location, offset, _script.size())) {
+					break;
+				}
+			}
 		}
+
+		relocEntry += 10;
 	}
 }
+#endif
 
 void Script::incrementLockers() {
 	assert(!_markedAsDeleted);
@@ -804,36 +861,42 @@ uint32 Script::validateExportFunc(int pubfunct, bool relocSci3) {
 	bool exportsAreWide = (g_sci->_features->detectLofsType() == SCI_VERSION_1_MIDDLE);
 
 	if (_numExports <= (uint)pubfunct) {
-		error("validateExportFunc(): pubfunct is invalid");
-		return 0;
+		error("Script %d validateExportFunc(): pubfunct %d is invalid", _nr, pubfunct);
 	}
 
 	if (exportsAreWide)
 		pubfunct *= 2;
 
-	uint32 offset;
+	int offset;
 
-	if (getSciVersion() != SCI_VERSION_3) {
+#ifdef ENABLE_SCI32
+	if (getSciVersion() == SCI_VERSION_3) {
+		if (!relocSci3) {
+			offset = _exports.getUint16SEAt(pubfunct) + getCodeBlockOffset();
+		} else {
+			offset = relocateOffsetSci3(pubfunct * sizeof(uint16) + /* header size */ 22);
+			// Some offsets below 0xFFFF are left as-is in the export table,
+			// e.g. Lighthouse script 64990
+			if (offset == -1) {
+				offset = _exports.getUint16SEAt(pubfunct) + getCodeBlockOffset();
+			}
+		}
+	} else
+#endif
 		offset = _exports.getUint16SEAt(pubfunct);
-	} else {
-		if (!relocSci3)
-			offset = _exports.getUint16SEAt(pubfunct) + getCodeBlockOffsetSci3();
-		else
-			offset = relocateOffsetSci3(pubfunct * 2 + 22);
-	}
 
 	// TODO: Check if this should be done for SCI1.1 games as well
 	if (getSciVersion() >= SCI_VERSION_2 && offset == 0) {
-		offset = _codeOffset;
+		offset = getCodeBlockOffset();
 	}
 
-	if (offset >= _buf->size())
-		error("Invalid export function pointer");
+	if (offset == -1 || offset >= (int)_buf->size())
+		error("Invalid export %d function pointer (%d) in script %d", pubfunct, offset, _nr);
 
 	return offset;
 }
 
-SciSpan<const byte> Script::findBlockSCI0(ScriptObjectTypes type, bool findLastBlock) {
+SciSpan<const byte> Script::findBlockSCI0(ScriptObjectTypes type, bool findLastBlock) const {
 	SciSpan<const byte> foundBlock;
 
 	bool oldScriptHeader = (getSciVersion() == SCI_VERSION_0_EARLY);
@@ -853,7 +916,7 @@ SciSpan<const byte> Script::findBlockSCI0(ScriptObjectTypes type, bool findLastB
 		assert(blockSize > 0);
 
 		if (blockType == type) {
-			foundBlock = buf.subspan(0, blockSize, Common::String::format("%s, %s block", _buf->name().c_str(), sciObjectTypeNames[type]));;
+			foundBlock = buf.subspan(0, blockSize, Common::String::format("%s, %s block", _buf->name().c_str(), sciObjectTypeNames[type]));
 
 			if (!findLastBlock) {
 				break;
@@ -868,21 +931,21 @@ SciSpan<const byte> Script::findBlockSCI0(ScriptObjectTypes type, bool findLastB
 
 // memory operations
 
-bool Script::isValidOffset(uint16 offset) const {
+bool Script::isValidOffset(uint32 offset) const {
 	return offset < _buf->size();
 }
 
 SegmentRef Script::dereference(reg_t pointer) {
 	if (pointer.getOffset() > _buf->size()) {
-		error("Script::dereference(): Attempt to dereference invalid pointer %04x:%04x into script segment (script size=%u)",
-				  PRINT_REG(pointer), _buf->size());
+		error("Script::dereference(): Attempt to dereference invalid pointer %04x:%04x into script %d segment (script size=%u)",
+				  PRINT_REG(pointer), _nr, _buf->size());
 		return SegmentRef();
 	}
 
 	SegmentRef ret;
 	ret.isRaw = true;
 	ret.maxSize = _buf->size() - pointer.getOffset();
-	ret.raw = const_cast<byte *>(_buf->getUnsafeDataAt(pointer.getOffset(), ret.maxSize));
+	ret.raw = _buf->getUnsafeDataAt(pointer.getOffset(), ret.maxSize);
 	return ret;
 }
 
@@ -895,7 +958,7 @@ LocalVariables *Script::allocLocalsSegment(SegManager *segMan) {
 		if (_localsSegment) {
 			locals = (LocalVariables *)segMan->getSegment(_localsSegment, SEG_TYPE_LOCALS);
 			if (!locals || locals->getType() != SEG_TYPE_LOCALS || locals->script_id != getScriptNumber())
-				error("Invalid script locals segment while allocating locals");
+				error("Invalid script %d locals segment while allocating locals", _nr);
 		} else
 			locals = (LocalVariables *)segMan->allocSegment(new LocalVariables(), &_localsSegment);
 
@@ -914,7 +977,7 @@ void Script::initializeLocals(SegManager *segMan) {
 			const SciSpan<const byte> base = _buf->subspan(getLocalsOffset());
 
 			for (uint16 i = 0; i < getLocalsCount(); i++)
-				locals->_locals[i] = make_reg(0, base.getUint16SEAt(i * 2));
+				locals->_locals[i] = make_reg(0, base.getUint16SEAt(i * sizeof(uint16)));
 		} else {
 			// In SCI0 early, locals are set at run time, thus zero them all here
 			for (uint16 i = 0; i < getLocalsCount(); i++)
@@ -942,9 +1005,11 @@ void Script::initializeClasses(SegManager *segMan) {
 	} else if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1_LATE) {
 		seeker = _heap.subspan(4 + _heap.getUint16SEAt(2) * 2);
 		mult = 2;
+#ifdef ENABLE_SCI32
 	} else if (getSciVersion() == SCI_VERSION_3) {
 		seeker = getSci3ObjectsPointer();
 		mult = 1;
+#endif
 	}
 
 	if (!seeker)
@@ -993,11 +1058,14 @@ void Script::initializeClasses(SegManager *segMan) {
 			}
 
 			if (species < 0 || species >= (int)segMan->classTableSize())
-				error("Invalid species %d(0x%x) unknown max %d(0x%x) while instantiating script %d\n",
+				error("Invalid species %d(0x%x) unknown max %d(0x%x) while instantiating script %d",
 						  species, species, segMan->classTableSize(), segMan->classTableSize(), _nr);
 
 			SegmentId segmentId = segMan->getScriptSegment(_nr);
-			segMan->setClassOffset(species, make_reg(segmentId, classpos));
+			reg_t classOffset;
+			classOffset.setSegment(segmentId);
+			classOffset.setOffset(classpos);
+			segMan->setClassOffset(species, classOffset);
 		}
 
 		seeker += seeker.getUint16SEAt(2) * mult;
@@ -1021,11 +1089,13 @@ void Script::initializeObjectsSci0(SegManager *segMan, SegmentId segmentId) {
 			case SCI_OBJ_OBJECT:
 			case SCI_OBJ_CLASS:
 				{
-					reg_t addr = make_reg(segmentId, seeker - *_buf + 4);
-					Object *obj = scriptObjInit(addr);
-					obj->initSpecies(segMan, addr);
-
-					if (pass == 2) {
+					reg_t addr = make_reg(segmentId, seeker - *_buf + 4 - SCRIPT_OBJECT_MAGIC_OFFSET);
+					Object *obj;
+					if (pass == 1) {
+						obj = scriptObjInit(addr);
+						obj->initSpecies(segMan, addr);
+					} else {
+						obj = getObject(addr.getOffset());
 						if (!obj->initBaseObject(segMan, addr)) {
 							if ((_nr == 202 || _nr == 764) && g_sci->getGameId() == GID_KQ5) {
 								// WORKAROUND: Script 202 of KQ5 French and German
@@ -1036,7 +1106,7 @@ void Script::initializeObjectsSci0(SegManager *segMan, SegmentId segmentId) {
 								// contain junk towards its end.
 								_objects.erase(addr.toUint16() - SCRIPT_OBJECT_MAGIC_OFFSET);
 							} else {
-								error("Failed to locate base object for object at %04X:%04X", PRINT_REG(addr));
+								error("Failed to locate base object for object at %04x:%04x in script %d", PRINT_REG(addr), _nr);
 							}
 						}
 					}
@@ -1051,13 +1121,12 @@ void Script::initializeObjectsSci0(SegManager *segMan, SegmentId segmentId) {
 		} while ((uint32)(seeker - *_buf) < getScriptSize() - 2);
 	}
 
-	const SciSpan<const byte> relocationBlock = findBlockSCI0(SCI_OBJ_POINTERS);
-	if (relocationBlock)
-		relocateSci0Sci21(make_reg(segmentId, relocationBlock - *_buf + 4));
+	relocateSci0Sci21(segmentId);
 }
 
 void Script::initializeObjectsSci11(SegManager *segMan, SegmentId segmentId) {
 	SciSpan<const byte> seeker = _heap.subspan(4 + _heap.getUint16SEAt(2) * 2);
+	Common::Array<reg_t> mismatchedVarCountObjects;
 
 	while (seeker.getUint16SEAt(0) == SCRIPT_OBJECT_MAGIC_NUMBER) {
 		reg_t reg = make_reg(segmentId, seeker - *_buf);
@@ -1081,6 +1150,16 @@ void Script::initializeObjectsSci11(SegManager *segMan, SegmentId segmentId) {
 			reg_t classObject = obj->getSuperClassSelector();
 			const Object *classObj = segMan->getObject(classObject);
 			obj->setPropDictSelector(classObj->getPropDictSelector());
+
+			// At least some versions of Island of Dr Brain have a bMessager
+			// instance in script 0 with a var count greater than that of its
+			// class; warn about this here to see if it shows up in any other
+			// games
+			if (obj->getVarCount() != classObj->getVarCount()) {
+				// Warnings have to be deferred until after relocation for the
+				// object name to be resolvable
+				mismatchedVarCountObjects.push_back(reg);
+			}
 		}
 
 		// Set the -classScript- selector to the script number.
@@ -1094,9 +1173,25 @@ void Script::initializeObjectsSci11(SegManager *segMan, SegmentId segmentId) {
 		seeker += seeker.getUint16SEAt(2) * 2;
 	}
 
-	relocateSci0Sci21(make_reg(segmentId, _heap.getUint16SEAt(0)));
+	relocateSci0Sci21(segmentId);
+
+	for (uint i = 0; i < mismatchedVarCountObjects.size(); ++i) {
+		const reg_t pos = mismatchedVarCountObjects[i];
+		const Object *obj = segMan->getObject(pos);
+		reg_t classObject = obj->getSuperClassSelector();
+		const Object *classObj = segMan->getObject(classObject);
+
+		warning("Object %04x:%04x (%s) from %s declares %d variables, "
+				"but its class declares %d variables",
+				PRINT_REG(pos),
+				segMan->getObjectName(pos),
+				_buf->name().c_str(),
+				obj->getVarCount(),
+				classObj->getVarCount());
+	}
 }
 
+#ifdef ENABLE_SCI32
 void Script::initializeObjectsSci3(SegManager *segMan, SegmentId segmentId) {
 	SciSpan<const byte> seeker = getSci3ObjectsPointer();
 
@@ -1113,16 +1208,19 @@ void Script::initializeObjectsSci3(SegManager *segMan, SegmentId segmentId) {
 		seeker += seeker.getUint16SEAt(2);
 	}
 
-	relocateSci3(make_reg(segmentId, 0));
+	relocateSci3(segmentId);
 }
+#endif
 
 void Script::initializeObjects(SegManager *segMan, SegmentId segmentId) {
 	if (getSciVersion() <= SCI_VERSION_1_LATE)
 		initializeObjectsSci0(segMan, segmentId);
 	else if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1_LATE)
 		initializeObjectsSci11(segMan, segmentId);
+#ifdef ENABLE_SCI32
 	else if (getSciVersion() == SCI_VERSION_3)
 		initializeObjectsSci3(segMan, segmentId);
+#endif
 }
 
 reg_t Script::findCanonicAddress(SegManager *segMan, reg_t addr) const {
@@ -1158,7 +1256,7 @@ Common::Array<reg_t> Script::listAllOutgoingReferences(reg_t addr) const {
 			for (uint i = 0; i < obj->getVarCount(); i++)
 				tmp.push_back(obj->getVariable(i));
 		} else {
-			error("Request for outgoing script-object reference at %04x:%04x failed", PRINT_REG(addr));
+			error("Request for outgoing script-object reference at %04x:%04x failed in script %d", PRINT_REG(addr), _nr);
 		}
 	} else {
 		/*		warning("Unexpected request for outgoing script-object references at %04x:%04x", PRINT_REG(addr));*/
@@ -1184,7 +1282,7 @@ Common::Array<reg_t> Script::listObjectReferences() const {
 	return tmp;
 }
 
-bool Script::offsetIsObject(uint16 offset) const {
+bool Script::offsetIsObject(uint32 offset) const {
 	return _buf->getUint16SEAt(offset + SCRIPT_OBJECT_MAGIC_OFFSET) == SCRIPT_OBJECT_MAGIC_NUMBER;
 }
 

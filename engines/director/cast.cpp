@@ -21,6 +21,7 @@
  */
 
 #include "director/director.h"
+#include "director/cachedmactext.h"
 #include "director/cast.h"
 #include "director/score.h"
 
@@ -71,13 +72,13 @@ BitmapCast::BitmapCast(Common::ReadStreamEndian &stream, uint32 castTag, uint16 
 			stream.readUint32();
 
 		uint32 stringLength = stream.readUint32();
-		for (int s = 0; s < stringLength; s++) 
+		for (uint32 s = 0; s < stringLength; s++)
 			stream.readByte();
 
-		uint16 width = stream.readUint16LE(); //maybe?
+		/*uint16 width =*/ stream.readUint16LE(); //maybe?
 		initialRect = Score::readRect(stream);
 
-		uint32 somethingElse = stream.readUint32();
+		/*uint32 somethingElse =*/ stream.readUint32();
 		boundingRect = Score::readRect(stream);
 
 		bitsPerPixel = stream.readUint16();
@@ -172,11 +173,54 @@ TextCast::TextCast(Common::ReadStreamEndian &stream, uint16 version) {
 		fontSize = stream.readUint16();
 		textSlant = 0;
 	} else {
+		fontId = 1;
+		fontSize = 12;
+
+		stream.readUint32();
+		stream.readUint32(); 
+		stream.readUint32();
+		stream.readUint32();
+		uint16 skip = stream.readUint16();
+		for (int i = 0; i < skip; i++) 
+			stream.readUint32();
+
+		stream.readUint32();
+		stream.readUint32();
+		stream.readUint32();
+		stream.readUint32();
+		stream.readUint32();
+		stream.readUint32();
+
 		initialRect = Score::readRect(stream);
 		boundingRect = Score::readRect(stream);
+
+		stream.readUint32();
+		stream.readUint16();
+		stream.readUint16();
 	}
 
 	modified = 0;
+
+	cachedMacText = new CachedMacText(this, version);
+	// TODO Destroy me
+}
+
+void TextCast::importStxt(const Stxt *stxt) {
+	fontId = stxt->_fontId;
+	textSlant = stxt->_textSlant;
+	fontSize = stxt->_fontSize;
+	palinfo1 = stxt->_palinfo1;
+	palinfo2 = stxt->_palinfo2;
+	palinfo3 = stxt->_palinfo3;
+	_ftext = stxt->_ftext;
+}
+
+void TextCast::importRTE(byte* text) 	{
+	//assert(rteList.size() == 3);
+	//child0 is probably font data.
+	//child1 is the raw text.
+	_ftext = Common::String((char*)text);
+	//child2 is positional?
 }
 
 ShapeCast::ShapeCast(Common::ReadStreamEndian &stream, uint16 version) {

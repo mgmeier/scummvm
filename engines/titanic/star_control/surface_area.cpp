@@ -21,6 +21,7 @@
  */
 
 #include "titanic/star_control/surface_area.h"
+#include "graphics/primitives.h"
 
 namespace Titanic {
 
@@ -30,7 +31,8 @@ CSurfaceArea::CSurfaceArea(CVideoSurface *surface) {
 	_pitch = surface->getPitch();
 	_field0 = 0;
 	_colorMask = _color = 0;
-	_mode = SA_NONE;
+	_mode = SA_SOLID;
+	_surface = nullptr;
 
 	// Original supported other pixel depths
 	_bpp = surface->getPixelDepth();
@@ -47,7 +49,7 @@ void CSurfaceArea::initialize() {
 	_field27 = _field26 = _field25 = 0;
 	_field24 = 0;
 	_rgb = _field2C = 0;
-	_mode = SA_NONE;
+	_mode = SA_SOLID;
 }
 
 void CSurfaceArea::setColor(uint rgb) {
@@ -60,7 +62,7 @@ void CSurfaceArea::setColor(uint rgb) {
 		_color = rgb;
 		_colorMask = ~rgb;
 		break;
-	case SA_MODE3:
+	case SA_XOR:
 		_color = rgb;
 		_colorMask = 0xFFFFFFFF;
 		break;
@@ -76,13 +78,25 @@ void CSurfaceArea::setColor(uint rgb) {
 SurfaceAreaMode CSurfaceArea::setMode(SurfaceAreaMode mode) {
 	SurfaceAreaMode oldMode = _mode;
 	_mode = mode;
-	setColor(_color);
+	setColor(_rgb);
 	return oldMode;
 }
 
 void CSurfaceArea::setColorFromPixel() {
 	pixelToRGB(_pixel, &_rgb);
 	setColor(_rgb);
+}
+
+Graphics::PixelFormat CSurfaceArea::getPixelFormat() const {
+	switch (_bpp) {
+	case 1:
+	case 2:
+		return Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0);
+	case 4:
+		return Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
+	default:
+		return Graphics::PixelFormat::createFormatCLUT8();
+	}
 }
 
 void CSurfaceArea::pixelToRGB(uint pixel, uint *rgb) {
@@ -93,12 +107,8 @@ void CSurfaceArea::pixelToRGB(uint pixel, uint *rgb) {
 
 	case 1:
 	case 2: {
-		uint r = pixel & 0xF8;
-		uint g = (pixel >> 8) & 0xf8;
-		uint b = ((pixel >> 16) & 0xff) >> 3;
-		uint value = (((r << 5) | g) << 2) | b;
-		value &= 0xffff;
-		*rgb = (value << 16) | value;
+		Graphics::PixelFormat pf = getPixelFormat();
+		*rgb = pf.RGBToColor(pixel & 0xff, (pixel >> 8) & 0xff, (pixel >> 16) & 0xff);
 		break;
 	}
 
@@ -109,40 +119,39 @@ void CSurfaceArea::pixelToRGB(uint pixel, uint *rgb) {
 	}
 }
 
-double CSurfaceArea::fillRect(const FRect &rect) {
-	if (rect.empty())
-		return rect.top;
+double CSurfaceArea::drawLine(const FPoint &pt1, const FPoint &pt2) {
+	if (pt1 == pt2)
+		return pt1._y;
 
-	double xp = rect.left, yp = rect.top;
-	FRect r = rect;
+	FPoint p1 = pt1, p2 = pt2;
+	double xp = pt1._x, yp = pt1._y;
 
-	// edx=flags1, esi=flags2
-	int flags1 = (r.left < _bounds.left ? 1 : 0)
-		| (r.left > _bounds.right ? 2 : 0)
-		| (r.top < _bounds.top ? 4 : 0)
-		| (r.top > _bounds.bottom ? 8 : 0);
-	int flags2 = (r.right < _bounds.left ? 1 : 0)
-		| (r.right > _bounds.right ? 2 : 0)
-		| (r.bottom < _bounds.top ? 4 : 0)
-		| (r.bottom > _bounds.bottom ? 8 : 0);
+	int flags1 = (p1._x < _bounds.left ? 1 : 0)
+		| (p1._x > _bounds.right ? 2 : 0)
+		| (p1._y < _bounds.top ? 4 : 0)
+		| (p1._y > _bounds.bottom ? 8 : 0);
+	int flags2 = (p2._x < _bounds.left ? 1 : 0)
+		| (p2._x > _bounds.right ? 2 : 0)
+		| (p2._y < _bounds.top ? 4 : 0)
+		| (p2._y > _bounds.bottom ? 8 : 0);
 
 	// Handle any clipping
 	while (flags1 | flags2) {
 		if (flags1 & flags2)
-			return r.top;
+			return p1._y;
 
 		int flags = flags1 ? flags1 : flags2;
 		if ((flags & 1) || (flags & 2)) {
 			xp = (flags & 1) ? _bounds.left : _bounds.right;
-			yp = (r.bottom - r.top) * (xp - r.left) / (r.right - r.left) + r.top;
+			yp = (p2._y - p1._y) * (xp - p1._x) / (p2._x - p1._x) + p1._y;
 		} else if ((flags & 4) || (flags & 8)) {
 			yp = (flags & 4) ? _bounds.top : _bounds.bottom;
-			xp = (r.right - r.left) * (yp - r.top) / (r.bottom - r.top) + r.left;
+			xp = (p2._x - p1._x) * (yp - p1._y) / (p2._y - p1._y) + p1._x;
 		}
 
 		if (flags == flags1) {
-			r.left = xp;
-			r.top = yp;
+			p1._x = xp;
+			p1._y = yp;
 
 			flags1 = 0;
 			if (xp < _bounds.left)
@@ -154,8 +163,8 @@ double CSurfaceArea::fillRect(const FRect &rect) {
 			if (yp > _bounds.bottom)
 				flags1 |= 8;
 		} else {
-			r.right = xp;
-			r.bottom = yp;
+			p2._x = xp;
+			p2._y = yp;
 
 			flags2 = 0;
 			if (xp < _bounds.left)
@@ -169,91 +178,43 @@ double CSurfaceArea::fillRect(const FRect &rect) {
 		}
 	}
 
-	Common::Rect rr((int)(MIN(r.left, r.right) - 0.5), (int)(MIN(r.top, r.bottom) - 0.5),
-		(int)(MAX(r.left, r.right) - 0.5) + 1, (int)(MAX(r.top, r.bottom) - 0.5) + 1);
-	
+	Common::Point srcPos((int)(p1._x - 0.5), (int)(p1._y - 0.5));
+	Common::Point destPos((int)(p2._x - 0.5), (int)(p2._y - 0.5));
+
 	Graphics::Surface s;
 	s.setPixels(_pixelsPtr);
 	s.pitch = _pitch;
+	s.format = getPixelFormat();
 	s.w = _width;
 	s.h = _height;
+	_surface = &s;
 
 	switch (_bpp) {
 	case 0:
-		s.format = Graphics::PixelFormat::createFormatCLUT8();
+		if (_mode != SA_SOLID) {
+			Graphics::drawLine(srcPos.x, srcPos.y, destPos.x, destPos.y, 0, plotPoint<byte>, this);
+			return p1._y;
+		}
 		break;
 	case 1:
 	case 2:
-		s.format = Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0);
+		if (_mode != SA_SOLID) {
+			Graphics::drawLine(srcPos.x, srcPos.y, destPos.x, destPos.y, 0, plotPoint<uint16>, this);
+			return p1._y;
+		}
 		break;
 	case 4:
-		s.format = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
+		if (_mode != SA_SOLID) {
+			Graphics::drawLine(srcPos.x, srcPos.y, destPos.x, destPos.y, 0, plotPoint<uint32>, this);
+			return p1._y;
+		}
 		break;
 	default:
 		error("Unknown bpp");
 	}
 
-	// Fill area
-	if (_mode == SA_NONE) {
-		s.fillRect(rr, _rgb);
-	} else {
-		colorRect(s, rr, _colorMask, _color);
-	}
-/*
-	int yInc = 1;
-	byte *lineStartP = (byte *)_pixelsPtr + rr.top * _pitch;
-	int width2 = rr.width() / 2;
-	int height2 = rr.height() / 2;
-	int xInc = _pitch;
-
-	if (xInc < 0) {
-		--xInc;
-		yInc = -1;
-	}
-
-	// rr: left=esi, edi=top, ebx=right, edx=bottom
-	// ecx=lineStartP; ebp=width2, edx=height2
-
-	if (_mode == SA_NONE) {
-		switch (_bpp) {
-		default:
-			break;
-		}
-	} else {
-		switch (_bpp) {
-		default:
-			break;
-		}
-	}
-
-	// Lots more functionality
-*/
-	return r.top;
-}
-
-template<typename T>
-static void colorRectFn(Graphics::Surface &s, const Common::Rect &r,
-		uint andMask, uint xorMask) {
-	for (int yp = r.top; yp < r.bottom; ++yp) {
-		T *pixelP = (T *)s.getBasePtr(r.left, yp);
-		for (int xp = r.left; xp < r.right; ++xp, ++pixelP)
-			*pixelP = (*pixelP & andMask) ^ xorMask;
-	}
-}
-
-void CSurfaceArea::colorRect(Graphics::Surface &s, const Common::Rect &r,
-		uint andMask, uint xorMask) {
-	switch (s.format.bytesPerPixel) {
-	case 1:
-		colorRectFn<byte>(s, r, andMask, xorMask);
-		break;
-	case 2:
-		colorRectFn<uint16>(s, r, andMask, xorMask);
-		break;
-	default:
-		colorRectFn<uint32>(s, r, andMask, xorMask);
-		break;
-	}
+	s.drawLine(srcPos.x, srcPos.y, destPos.x, destPos.y, _rgb);
+	return p1._y;
 }
 
 } // End of namespace Titanic

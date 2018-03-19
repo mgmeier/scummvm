@@ -70,7 +70,7 @@ CREATE_DOSOUND_FORWARD(DoSoundSetVolume)
 CREATE_DOSOUND_FORWARD(DoSoundSetPriority)
 CREATE_DOSOUND_FORWARD(DoSoundSetLoop)
 
-#ifdef ENABLE_SCI32
+#ifdef ENABLE_SCI32_MAC
 reg_t kDoSoundPhantasmagoriaMac(EngineState *s, int argc, reg_t *argv) {
 	// Phantasmagoria Mac (and seemingly no other game (!)) uses this
 	// cutdown version of kDoSound.
@@ -348,38 +348,42 @@ reg_t kDoAudioInit(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoAudioWaitForPlay(EngineState *s, int argc, reg_t *argv) {
+	if (argc == 0) {
+		if (g_sci->_features->hasSci3Audio()) {
+			return make_reg(0, g_sci->_audio32->getNumUnlockedChannels());
+		} else {
+			return make_reg(0, g_sci->_audio32->getNumActiveChannels());
+		}
+	}
+
 	return g_sci->_audio32->kernelPlay(false, argc, argv);
 }
 
 reg_t kDoAudioPlay(EngineState *s, int argc, reg_t *argv) {
+	if (argc == 0) {
+		return make_reg(0, g_sci->_audio32->getNumActiveChannels());
+	}
+
 	return g_sci->_audio32->kernelPlay(true, argc, argv);
 }
 
 reg_t kDoAudioStop(EngineState *s, int argc, reg_t *argv) {
-	const int16 channelIndex = g_sci->_audio32->findChannelByArgs(argc, argv, 0, argc > 1 ? argv[1] : NULL_REG);
-	return make_reg(0, g_sci->_audio32->stop(channelIndex));
+	return g_sci->_audio32->kernelStop(argc, argv);
 }
 
 reg_t kDoAudioPause(EngineState *s, int argc, reg_t *argv) {
-	const int16 channelIndex = g_sci->_audio32->findChannelByArgs(argc, argv, 0, argc > 1 ? argv[1] : NULL_REG);
-	return make_reg(0, g_sci->_audio32->pause(channelIndex));
+	return g_sci->_audio32->kernelPause(argc, argv);
 }
 
 reg_t kDoAudioResume(EngineState *s, int argc, reg_t *argv) {
-	const int16 channelIndex = g_sci->_audio32->findChannelByArgs(argc, argv, 0, argc > 1 ? argv[1] : NULL_REG);
-	return make_reg(0, g_sci->_audio32->resume(channelIndex));
+	return g_sci->_audio32->kernelResume(argc, argv);
 }
 
 reg_t kDoAudioPosition(EngineState *s, int argc, reg_t *argv) {
-	const int16 channelIndex = g_sci->_audio32->findChannelByArgs(argc, argv, 0, argc > 1 ? argv[1] : NULL_REG);
-	return make_reg(0, g_sci->_audio32->getPosition(channelIndex));
+	return g_sci->_audio32->kernelPosition(argc, argv);
 }
 
 reg_t kDoAudioRate(EngineState *s, int argc, reg_t *argv) {
-	// NOTE: In the original engine this would set the hardware
-	// DSP sampling rate; ScummVM mixer does not need this, so
-	// we only store the value to satisfy engine compatibility.
-
 	if (argc > 0) {
 		const uint16 sampleRate = argv[0].toUint16();
 		if (sampleRate != 0) {
@@ -391,14 +395,7 @@ reg_t kDoAudioRate(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoAudioVolume(EngineState *s, int argc, reg_t *argv) {
-	const int16 volume = argc > 0 ? argv[0].toSint16() : -1;
-	const int16 channelIndex = g_sci->_audio32->findChannelByArgs(argc, argv, 1, argc > 2 ? argv[2] : NULL_REG);
-
-	if (volume != -1) {
-		g_sci->_audio32->setVolume(channelIndex, volume);
-	}
-
-	return make_reg(0, g_sci->_audio32->getVolume(channelIndex));
+	return g_sci->_audio32->kernelVolume(argc, argv);
 }
 
 reg_t kDoAudioGetCapability(EngineState *s, int argc, reg_t *argv) {
@@ -406,10 +403,6 @@ reg_t kDoAudioGetCapability(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoAudioBitDepth(EngineState *s, int argc, reg_t *argv) {
-	// NOTE: In the original engine this would set the hardware
-	// DSP bit depth; ScummVM mixer does not need this, so
-	// we only store the value to satisfy engine compatibility.
-
 	if (argc > 0) {
 		const uint16 bitDepth = argv[0].toUint16();
 		if (bitDepth != 0) {
@@ -421,18 +414,10 @@ reg_t kDoAudioBitDepth(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoAudioMixing(EngineState *s, int argc, reg_t *argv) {
-	if (argc > 0) {
-		g_sci->_audio32->setAttenuatedMixing(argv[0].toUint16());
-	}
-
-	return make_reg(0, g_sci->_audio32->getAttenuatedMixing());
+	return g_sci->_audio32->kernelMixing(argc, argv);
 }
 
 reg_t kDoAudioChannels(EngineState *s, int argc, reg_t *argv) {
-	// NOTE: In the original engine this would set the hardware
-	// DSP stereo output; ScummVM mixer does not need this, so
-	// we only store the value to satisfy engine compatibility.
-
 	if (argc > 0) {
 		const int16 numChannels = argv[0].toSint16();
 		if (numChannels != 0) {
@@ -444,11 +429,6 @@ reg_t kDoAudioChannels(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoAudioPreload(EngineState *s, int argc, reg_t *argv) {
-	// NOTE: In the original engine this would cause audio
-	// data for new channels to be preloaded to memory when
-	// the channel was initialized; we do not need this, so
-	// we only store the value to satisfy engine compatibility.
-
 	if (argc > 0) {
 		g_sci->_audio32->setPreload(argv[0].toUint16());
 	}
@@ -457,21 +437,7 @@ reg_t kDoAudioPreload(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoAudioFade(EngineState *s, int argc, reg_t *argv) {
-	if (argc < 4) {
-		return make_reg(0, 0);
-	}
-
-	// NOTE: Sierra did a nightmarish hack here, temporarily replacing
-	// the argc of the kernel arguments with 2 and then restoring it
-	// after findChannelByArgs was called.
-	const int16 channelIndex = g_sci->_audio32->findChannelByArgs(2, argv, 0, argc > 5 ? argv[5] : NULL_REG);
-
-	const int16 volume = argv[1].toSint16();
-	const int16 speed = argv[2].toSint16();
-	const int16 steps = argv[3].toSint16();
-	const bool stopAfterFade = argc > 4 ? (bool)argv[4].toUint16() : false;
-
-	return make_reg(0, g_sci->_audio32->fadeChannel(channelIndex, volume, speed, steps, stopAfterFade));
+	return g_sci->_audio32->kernelFade(argc, argv);
 }
 
 reg_t kDoAudioHasSignal(EngineState *s, int argc, reg_t *argv) {
@@ -479,20 +445,23 @@ reg_t kDoAudioHasSignal(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoAudioSetLoop(EngineState *s, int argc, reg_t *argv) {
-	const int16 channelIndex = g_sci->_audio32->findChannelByArgs(argc, argv, 0, argc == 3 ? argv[2] : NULL_REG);
+	g_sci->_audio32->kernelLoop(argc, argv);
+	return s->r_acc;
+}
 
-	const bool loop = argv[0].toSint16() != 0 && argv[0].toSint16() != 1;
+reg_t kDoAudioPan(EngineState *s, int argc, reg_t *argv) {
+	g_sci->_audio32->kernelPan(argc, argv);
+	return s->r_acc;
+}
 
-	g_sci->_audio32->setLoop(channelIndex, loop);
+reg_t kDoAudioPanOff(EngineState *s, int argc, reg_t *argv) {
+	g_sci->_audio32->kernelPanOff(argc, argv);
 	return s->r_acc;
 }
 
 reg_t kSetLanguage(EngineState *s, int argc, reg_t *argv) {
-	// This is used by script 90 of MUMG Deluxe from the main menu to toggle
-	// the audio language between English and Spanish.
-	// Basically, it instructs the interpreter to switch the audio resources
-	// (resource.aud and associated map files) and load them from the "Spanish"
-	// subdirectory instead.
+	// Used by script 90 of MUMG Deluxe from the main menu to toggle between
+	// English and Spanish.
 	const Common::String audioDirectory = s->_segMan->getString(argv[0]);
 	g_sci->getResMan()->changeAudioDirectory(audioDirectory);
 	return s->r_acc;

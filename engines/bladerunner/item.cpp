@@ -47,7 +47,7 @@ Item::Item(BladeRunnerEngine *vm) {
 	_screenX = 0;
 	_screenY = 0;
 	_depth = 0.0f;
-	_isTargetable = false;
+	_isTarget = false;
 	_isSpinning = false;
 	_facingChange = 0;
 	_isVisible = true;
@@ -58,22 +58,19 @@ Item::Item(BladeRunnerEngine *vm) {
 	_screenRectangle.left = -1;
 }
 
-Item::~Item() {
-}
-
-void Item::getXYZ(float *x, float *y, float *z) {
+void Item::getXYZ(float *x, float *y, float *z) const {
 	*x = _position.x;
 	*y = _position.y;
 	*z = _position.z;
 }
 
-void Item::getWidthHeight(int *width, int *height) {
+void Item::getWidthHeight(int *width, int *height) const {
 	*width = _width;
 	*height = _height;
 }
 
-bool Item::isTargetable() {
-	return _isTargetable;
+bool Item::isTarget() const {
+	return _isTarget;
 }
 
 bool Item::tick(Common::Rect *screenRect, bool special) {
@@ -86,7 +83,7 @@ bool Item::tick(Common::Rect *screenRect, bool special) {
 
 	Vector3 position(_position.x, -_position.z, _position.y);
 	int animationId = _animationId + (special ? 1 : 0);
-	_vm->_sliceRenderer->drawInWorld(animationId, 0, position, M_PI - _angle, 1.0f, _vm->_surface2, _vm->_zbuffer->getData());
+	_vm->_sliceRenderer->drawInWorld(animationId, 0, position, M_PI - _angle, 1.0f, _vm->_surfaceFront, _vm->_zbuffer->getData());
 	_vm->_sliceRenderer->getScreenRectangle(&_screenRectangle, animationId, 0, position, M_PI - _angle, 1.0f);
 
 	if (!_screenRectangle.isEmpty()) {
@@ -137,7 +134,7 @@ void Item::setXYZ(Vector3 position) {
 	_depth = screenPosition.z * 25.5f;
 }
 
-void Item::setup(int itemId, int setId, int animationId, Vector3 position, int facing, int height, int width, bool isTargetableFlag, bool isVisibleFlag, bool isPoliceMazeEnemyFlag) {
+void Item::setup(int itemId, int setId, int animationId, Vector3 position, int facing, int height, int width, bool isTargetFlag, bool isVisible, bool isPoliceMazeEnemy) {
 	_itemId = itemId;
 	_setId = setId;
 	_animationId = animationId;
@@ -145,14 +142,22 @@ void Item::setup(int itemId, int setId, int animationId, Vector3 position, int f
 	_angle = facing * (M_PI / 512.0f);
 	_width = width;
 	_height = height;
-	_isTargetable = isTargetableFlag;
-	_isVisible = isVisibleFlag;
-	_isPoliceMazeEnemy = isPoliceMazeEnemyFlag;
+	_isTarget = isTargetFlag;
+	_isVisible = isVisible;
+	_isPoliceMazeEnemy = isPoliceMazeEnemy;
 	setXYZ(position);
 	_screenRectangle.bottom = -1;
 	_screenRectangle.right = -1;
 	_screenRectangle.top = -1;
 	_screenRectangle.left = -1;
+}
+
+bool Item::isUnderMouse(int mouseX, int mouseY) const {
+	return _isVisible
+	    && mouseX >= _screenRectangle.left   - 10
+	    && mouseX <= _screenRectangle.right  + 10
+	    && mouseY >= _screenRectangle.top    - 10
+	    && mouseY <= _screenRectangle.bottom + 10;
 }
 
 } // End of namespace BladeRunner

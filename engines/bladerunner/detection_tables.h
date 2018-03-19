@@ -53,6 +53,63 @@ static const ADGameDescription gameDescriptions[] = {
 		ADGF_NO_FLAGS,
 		GUIO0()
 	},
+
+	// BladeRunner (French) - Bug #9722
+	{
+		"bladerunner",
+		0,
+		{
+			{"STARTUP.MIX", 0, "39d1901df50935d58aee252707134952", 2314526},
+			AD_LISTEND
+		},
+		Common::FR_FRA,
+		Common::kPlatformWindows,
+		ADGF_NO_FLAGS,
+		GUIO0()
+	},
+
+	// BladeRunner (Italian)
+	{
+		"bladerunner",
+		0,
+		{
+			{"STARTUP.MIX", 0, "c7ceb9c691223d25e78516aa519ff504", 2314461},
+			AD_LISTEND
+		},
+		Common::IT_ITA,
+		Common::kPlatformWindows,
+		ADGF_NO_FLAGS,
+		GUIO0()
+	},
+
+	// BladeRunner (Russian)
+	{
+		"bladerunner",
+		0,
+		{
+			{"STARTUP.MIX", 0, "c198b54a5366b88b1734bbca21d3b192", 2678672},
+			AD_LISTEND
+		},
+		Common::RU_RUS,
+		Common::kPlatformWindows,
+		ADGF_NO_FLAGS,
+		GUIO0()
+	},
+
+	// BladeRunner (Spanish)
+	{
+		"bladerunner",
+		0,
+		{
+			{"STARTUP.MIX", 0, "54cad53da9e4ae03a85648834ac6765d", 2312976},
+			AD_LISTEND
+		},
+		Common::ES_ESP,
+		Common::kPlatformWindows,
+		ADGF_NO_FLAGS,
+		GUIO0()
+	},
+
 	AD_TABLE_END_MARKER
 };
 

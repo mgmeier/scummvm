@@ -27,6 +27,14 @@ namespace BladeRunner {
 
 class BladeRunnerEngine;
 
+enum PlayerAgenda {
+	kPlayerAgendaPolite = 0,
+	kPlayerAgendaNormal = 1,
+	kPlayerAgendaSurly = 2,
+	kPlayerAgendaErratic = 3,
+	kPlayerAgendaUserChoice = 4
+};
+
 class Settings {
 	BladeRunnerEngine *_vm;
 
@@ -50,6 +58,8 @@ class Settings {
 	int   _ammoType;
 	int   _ammoAmounts[3];
 
+	bool  _learyMode;
+
 public:
 	Settings(BladeRunnerEngine *vm);
 
@@ -67,11 +77,11 @@ public:
 		_newScene = -1;
 	}
 
-	int getNewScene() {
+	int getNewScene() const {
 		return _newScene;
 	}
 
-	int getNewSet() {
+	int getNewSet() const {
 		return _newSet;
 	}
 
@@ -84,7 +94,7 @@ public:
 		_loadingGame = loadingGame;
 	}
 
-	bool getLoadingGame() {
+	bool getLoadingGame() const {
 		return _loadingGame;
 	}
 
@@ -94,13 +104,19 @@ public:
 
 	bool openNewScene();
 
-	int getAmmoType();
-	int getAmmoAmount(int ammoType);
-
-	int getDifficulty();
-	int getPlayerAgenda();
-	void setPlayerAgenda(int agenda);
+	int getAmmoType() const;
+	void setAmmoType(int ammoType);
+	int getAmmo(int ammoType) const;
 	void addAmmo(int ammoType, int ammo);
+	void decreaseAmmo();
+
+	int getDifficulty() const;
+
+	int getPlayerAgenda() const;
+	void setPlayerAgenda(int agenda);
+
+	bool getLearyMode() const;
+	void setLearyMode(bool learyMode);
 };
 
 } // End of namespace BladeRunner

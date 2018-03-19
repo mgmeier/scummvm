@@ -33,18 +33,22 @@ Table of Contents:
  * 3.12 Inherit the Earth: Quest for the Orb notes
  * 3.13 Maniac Mansion Apple II/NES notes
  * 3.14 Mickey's Space Adventure notes
- * 3.15 Nippon Safes Inc. Amiga notes
- * 3.16 Simon the Sorcerer notes
- * 3.17 The Curse of Monkey Island notes
- * 3.18 The Feeble Files notes
- * 3.19 The Legend of Kyrandia notes
- * 3.20 Troll's Tale notes
- * 3.21 Winnie the Pooh notes
- * 3.22 Sierra AGI games: Predictive Input Dialog notes
- * 3.23 Sierra SCI games: Simultaneous speech and subtitles
- * 3.24 Zork games notes
- * 3.25 Commodore64 games notes
- * 3.26 Macintosh games notes
+ * 3.15 Myst notes
+ * 3.16 Nippon Safes Inc. Amiga notes
+ * 3.17 Quest for Glory notes
+ * 3.18 Riven notes
+ * 3.19 Simon the Sorcerer notes
+ * 3.20 Starship Titanic notes
+ * 3.21 The Curse of Monkey Island notes
+ * 3.22 The Feeble Files notes
+ * 3.23 The Legend of Kyrandia notes
+ * 3.24 Troll's Tale notes
+ * 3.25 Winnie the Pooh notes
+ * 3.26 Sierra AGI games: Predictive Input Dialog notes
+ * 3.27 Sierra SCI games: Simultaneous speech and subtitles
+ * 3.28 Zork games notes
+ * 3.29 Commodore64 games notes
+ * 3.30 Macintosh games notes
 4.0) Supported Platforms
 5.0) Running ScummVM
  * 5.1 Command Line Options
@@ -81,8 +85,9 @@ Table of Contents:
 8.0) Configuration file
  * 8.1 Recognized configuration keywords
  * 8.2 Custom game options that can be toggled via the GUI
-9.0) Compiling
-10.0) Credits
+9.0) Screenshots (SDL backend only)
+10.0) Compiling
+11.0) Credits
 
 
 1.0) Introduction:
@@ -123,7 +128,7 @@ major bugs, crashes can happen and we offer no warranty. That being said,
 some of the games have been supported for a long time and should work
 fine with any recent stable release. You can get a feeling of how well
 each game is working in ScummVM by looking at the compatibility page.
-Actually if you browse a bit around you might discover that ScummVM is
+Actually, if you browse a bit around you might discover that ScummVM is
 even being used commercially to re-release some of the supported games on
 modern platforms. This shows that several companies are happy with the
 quality of the software and how well it can run some of the games.
@@ -159,7 +164,7 @@ In the future, you should be able to directly skip to step 5, unless you
 want to add more games.
 
 Hint: If you want to add multiple games in one go, try pressing and
-holding the shift key before clicking 'Add game' -- it's label will
+holding the shift key before clicking 'Add game' -- its label will
 change to 'Mass Add' and if you press it, you are again asked to select
 a directory, only this time ScummVM will search through all
 subdirectories for supported games.
@@ -183,15 +188,15 @@ support an unsupported game -- read the FAQ on our web site first.
 
 2.1) Reporting Bugs:
 ---- ---------------
-To report a bug, please create a SourceForge account and follow the
-"Bug Tracker" link from our homepage. Please make sure the bug is
+To report a bug, please follow the "Bug Tracker" link from our homepage
+and log in with your GitHub account. Please make sure the bug is
 reproducible, and still occurs in the latest git/Daily build version.
 Also check the known problems list (below) and the compatibility list
 on our website for that game, to ensure the issue is not already known:
 
   <http://scummvm.org/compatibility/>
 
-Please do not report bugs on games that are not listed as being
+Please do not report bugs for games that are not listed as being
 completeable in the 'Supported Games' section, or compatibility list. We
 -know- those games have bugs.
 
@@ -307,6 +312,7 @@ Sierra (SCI) Games:
      EcoQuest: The Search for Cetus              [ecoquest]
      EcoQuest 2: Lost Secret of the Rainforest   [ecoquest2]
      Freddy Pharkas: Frontier Pharmacist         [freddypharkas]
+     Gabriel Knight: Sins of the Fathers         [gk1]
      Hoyle's Book of Games 1                     [hoyle1]
      Hoyle's Book of Games 2                     [hoyle2]
      Hoyle's Book of Games 3                     [hoyle3]
@@ -316,6 +322,8 @@ Sierra (SCI) Games:
      King's Quest IV                             [kq4sci]
      King's Quest V                              [kq5]
      King's Quest VI                             [kq6]
+     King's Quest VII                            [kq7]
+     King's Questions                            [kquestions]
      Laura Bow: The Colonel's Bequest            [laurabow]
      Laura Bow 2: The Dagger of Amon Ra          [laurabow2]
      Leisure Suit Larry 1                        [lsl1sci]
@@ -323,22 +331,34 @@ Sierra (SCI) Games:
      Leisure Suit Larry 3                        [lsl3]
      Leisure Suit Larry 5                        [lsl5]
      Leisure Suit Larry 6                        [lsl6]
+     Leisure Suit Larry 6 (hires)                [lsl6hires]
+     Leisure Suit Larry 7                        [lsl7]
+     Lighthouse: The Dark Being                  [lighthouse]
      Mixed-up Fairy Tales                        [fairytales]
      Mixed-up Mother Goose                       [mothergoose]
+     Mixed-up Mother Goose Deluxe                [mothergoosehires]
      Pepper's Adventures in Time                 [pepper]
+     Phantasmagoria                              [phantasmagoria]
+     Phantasmagoria 2: A Puzzle of Flesh         [phantasmagoria2]
      Police Quest 1                              [pq1sci]
      Police Quest 2                              [pq2]
      Police Quest 3                              [pq3]
+     Police Quest 4                              [pq4]
      Quest for Glory 1/Hero's Quest              [qfg1]
      Quest for Glory 1                           [qfg1vga]
      Quest for Glory 2                           [qfg2]
      Quest for Glory 3                           [qfg3]
+     RAMA                                        [rama]
      Slater & Charlie Go Camping                 [slater]
+     Shivers                                     [shivers]
      Space Quest I                               [sq1sci]
      Space Quest III                             [sq3]
      Space Quest IV                              [sq4]
      Space Quest V                               [sq5]
+     Space Quest 6                               [sq6]
      The Island of Dr. Brain                     [islandbrain]
+     The Beast Within: A Gabriel Knight Mystery  [gk2]
+     Torin's Passage                             [torin]
 
 Other Games:
      3 Skulls of the Toltecs                     [toltecs]
@@ -371,9 +391,11 @@ Other Games:
      Nippon Safes Inc.                           [nippon]
      Rex Nebular and the Cosmic Gender Bender    [nebular]
      Ringworld: Revenge Of The Patriarch         [ringworld]
+     Riven: The Sequel to Myst                   [riven]
      Return to Ringworld                         [ringworld2]
      Sfinx                                       [sfinx]
      Soltys                                      [soltys]
+     Starship Titanic                            [titanic]
      The Journeyman Project: Pegasus Prime       [pegasus]
      The Labyrinth of Time                       [lab]
      The Legend of Kyrandia                      [kyra1]
@@ -451,7 +473,7 @@ Humongous Entertainment (SCUMM) Games:
      SPY Fox in Cheese Chase                     [chase]
      SPY Fox in Hold the Mustard                 [mustard]
 
-The following games should load, but are not yet fully playable. Play
+The following games should load but are not yet fully playable. Play
 these at your own risk, and please do not file bug reports about them.
 If you want the latest updates on game compatibility, visit our web site
 and view the compatibility chart.
@@ -898,7 +920,15 @@ game's screen to change location, similar to many adventure games, which
 is simpler and more straightforward than moving around using the menu.
 
 
-3.15) Nippon Safes Inc. Amiga notes:
+3.15) Myst game notes:
+----- ----------------
+Left Click: Move/action
+Space: Pause the game
+Esc: Skip cutscene
+F5: Menu
+
+
+3.16) Nippon Safes Inc. Amiga notes:
 ----- ------------------------------
 For this game, you will need disk0, , global.table, pointer and
 it (en, fr, ge for the international version).
@@ -907,14 +937,94 @@ In addition, you will need to rename disk image 2 to disk1,
 disk image 3 to disk2, disk image 4 to disk3 and disk image 5 to disk4.
 
 
-3.16) Simon the Sorcerer games notes:
+3.17) Quest for Glory notes:
+----- ----------------------
+It is possible to import characters, beginning with Quest for Glory II,
+from past games to future games and continue from the stats earned
+from those games.
+
+For example, a character can be imported from Quest for Glory I directly
+to Quest for Glory III without having to necessarily play
+Quest for Glory II.
+
+Characters cannot be imported from future games to past games, nor can
+a character be imported to the same game that was just completed.
+In other words, a character from Quest for Glory II cannot be imported
+into Quest for Glory II.
+
+If you want to use a saved character from the original Sierra interpreter,
+you will need to rename the character file to
+"qfg[game-number]-[character-filename].sav"
+and place it in the ScummVM save path (see section 6.0), otherwise the
+file won't get listed on the import screen.
+
+Example: qfg2-thief.sav
+
+
+3.18) Riven game notes:
+----- -----------------
+Left Click: Move/action
+Arrow Keys: Movement
+Page Up: Look up
+Page Down: Look down
+Space: Pause the game
+Esc: Skip cutscene
+F5: Menu
+Ctrl-o: Load game
+Ctrl-s: Save game
+
+
+3.19) Simon the Sorcerer games notes:
 ----- -------------------------------
 If you have the dual version of Simon the Sorcerer 1 or 2 on CD, you
 will find the Windows version in the main directory of the CD and the
 DOS version in the DOS directory of the CD.
 
 
-3.17) The Curse of Monkey Island notes:
+3.20) Starship Titanic game notes:
+----------------------------------
+Basic Movements:
+Left Click: Move action
+Shift + Left Click: Edit room glyph chevrons and quick movement transitions
+Right Click: Edit room glyph chevrons and quick transitions
+Mouse Wheel: Scroll through items (inventory, etc) and conversation log
+Arrow Keys: Movement. Down arrow/back is only available if the
+    given view explicitly has a backwards movement available.
+
+Function Keys:
+F1: Switch to Chat-O-Mat
+F2: Switch to Personal Baggage
+F3: Switch to Remote Thingummy
+F4: Switch to Designer Room Numbers (chevron list)
+F5: GMM save menu
+F6: Switch to Real Life
+F7: GMM restore menu
+
+Controls for the Starfield Puzzle at the end of the game:
+Tab: Toggle between starmap and skyscape
+Mouse Click: skyscape star selection and
+             starmap star fast travel
+Mouse Movement: starmap orientation
+SPACE: starmap stop movement
+"Z": starmap turn left
+"X": starmap turn right
+"'": starmap turn up
+"/": starmap turn down
+";": starmap move forward
+".": starmap move backward
+"L": starmap lock coordinate
+"D": starmap unlock coordinate
+
+For the purposes of solving the puzzle, only mouse clicks, L and Tab
+are really needed, though the action glyph in the PET can be used
+instead of Tab.
+
+Miscellaneous controls:
+Ctrl + C: Open up the developer's cheat room
+Ctrl + D: Open up the ScummVM Debugger
+
+
+3.21) The Curse of Monkey Island notes:
 ----- ---------------------------------
 For this game, you will need the comi.la0, comi.la1 and comi.la2 files.
 The comi.la0 file can be found on either CD, but since they are
@@ -926,7 +1036,7 @@ two CDs. Some of the files appear on both CDs, but again they're
 identical.
 
 
-3.18) The Feeble Files notes:
+3.22) The Feeble Files notes:
 ----- -----------------------
 Amiga/Macintosh:
 You need to install a small pack of cutscenes that are missing in both
@@ -953,7 +1063,7 @@ Rename voices.wav on CD3 to voices3.wav
 Rename voices.wav on CD4 to voices4.wav
 
 
-3.19) The Legend of Kyrandia notes:
+3.23) The Legend of Kyrandia notes:
 ----- -----------------------------
 To run The Legend of Kyrandia under ScummVM you need the 'kyra.dat'
 file. The file should always be included in official ScummVM packages.
@@ -964,14 +1074,14 @@ thus you only need to grab it in case ScummVM complains about the file
 being missing.
 
 
-3.20) Troll's Tale notes:
+3.24) Troll's Tale notes:
 ----- -------------------
 The original game came in a PC booter disk, therefore it is necessary to
 dump the contents of that disk in an image file and name it "troll.img"
 to be able to play the game under ScummVM.
 
 
-3.21) Winnie the Pooh notes:
+3.25) Winnie the Pooh notes:
 ----- ----------------------
 It is possible to import saved games from the original interpreter of the
 game into ScummVM.
@@ -986,7 +1096,7 @@ game's screen to change location, similar to many adventure games, which
 is simpler and more straightforward than moving around using the menu.
 
 
-3.22) Sierra AGI games: Predictive Input Dialog:
+3.26) Sierra AGI games: Predictive Input Dialog:
 ----- ------------------------------------------
 The Predictive Input Dialog is a ScummVM aid for running AGI engine
 games (which notoriously require command line input) on devices with
@@ -1040,7 +1150,7 @@ naturally mapping the functionality to the numeric keypad. Also, the
 dialog's buttons can be navigated with the arrow and the enter keys.
 
 
-3.23) Sierra SCI games: Simultaneous speech and subtitles:
+3.27) Sierra SCI games: Simultaneous speech and subtitles:
 ----- ----------------------------------------------------
 Certain CD versions of Sierra SCI games had both speech and text
 resources. Some have an option to toggle between the two, but there are
@@ -1054,10 +1164,17 @@ The CD games where speech and subtitles can be shown simultaneously
 are:
   EcoQuest 1 CD
   Freddy Pharkas CD
+  Gabriel Knight CD
   King's Quest 6 CD
+  King's Quest VII CD
   Laura Bow 2 CD
   Leisure Suit Larry 6 CD
+  Leisure Suit Larry 6 (hires) CD
+  Police Quest 4 CD
+  Shivers CD
   Space Quest 4 CD
+  Space Quest 6 CD
+  Torin's Passage CD
 
 EcoQuest 1 CD:
     Speech and text can be toggled via the game's "Mode" option in the
@@ -1068,10 +1185,20 @@ Freddy Pharkas CD:
     audio options can be used to toggle this feature. Note that some
     spoken dialog is missing from the game texts.
 
+Gabriel Knight CD:
+    Speech and text can be toggled via the "Text" and "Voice" buttons
+    in the game's settings dialog, or via ScummVM's audio options.
+
 King's Quest 6 CD:
     Speech and text can be toggled via the "Mode" button in the options
     dialog (with an extra "Dual" setting added in ScummVM), or via
     ScummVM's audio options.
+
+King's Quest VII CD:
+    There is no in-game option to toggle speech and text. Only ScummVM's
+    audio options can be used to toggle this feature. Note that the
+    subtitles were disabled in the official release of this game, so
+    some subtitles may be wrong or missing.
 
 Laura Bow 2 CD:
     Speech and text can be toggled via the "Mode" button in the options
@@ -1083,15 +1210,40 @@ Leisure Suit Larry 6 CD:
     in-game option to toggle text only. Only ScummVM's audio options can
     be used to enable the text only mode.
 
+Leisure Suit Larry 6 (hires) CD:
+    Text can be toggled by selecting the "Text On/Off" option from the
+    in-game "Game" menu, or via ScummVM's audio options. Speech cannot
+    be disabled.
+
+Police Quest 4 CD:
+    Either speech only or text only can be selected from the game's
+    settings dialog. Only ScummVM's audio options can be used to enable
+    text+speech mode.
+
+Shivers CD:
+    Text can be toggled by selecting the "Text" option from the game's
+    settings dialog, or via ScummVM's audio options. Note that only
+    videos have subtitles in this game.
+
 Space Quest 4 CD:
     Speech and text can be toggled via the "Display Mode" button in the
     options dialog, or via ScummVM's audio options.
 
+Space Quest 6 CD:
+    Speech and text can be toggled via the "Speech" and "Text" buttons
+    in the game's settings dialog, or via ScummVM's audio options.
 
-3.24) Zork games notes:
+Torin's Passage CD:
+    Text can be toggled by selecting "Closed Captioning" from the
+    in-game "Game" menu. Speech can be disabled by selecting "Audio
+    Mixer" from the in-game "Game" menu and setting the speech volume
+    to zero.
+
+
+3.28) Zork games notes:
 ----- -----------------
 To run the supported Zork games (Zork Nemesis: The Forbidden Lands
-and Zork: Grand Inquisitor) you need to copy some (extra) data to it's
+and Zork: Grand Inquisitor) you need to copy some (extra) data to its
 corresponding destination.
 
 Zork Nemesis: The Forbidden Lands
@@ -1099,7 +1251,7 @@ Zork Nemesis: The Forbidden Lands
 All versions
 
 Download the Liberation(tm) fonts package
-<https://fedorahosted.org/releases/l/i/liberation-fonts/liberation-fonts-ttf-2.00.1.tar.gz>
+<https://releases.pagure.org/liberation-fonts/liberation-fonts-ttf-2.00.1.tar.gz>
 and unpack all the ttf files into your ScummVM extras directory.
 Alternatively, download the GNU FreeFont TTF package
 <https://ftp.gnu.org/gnu/freefont/freefont-ttf.zip> and unzip all the
@@ -1185,7 +1337,7 @@ Copy the zassetsc directory into the game root directory
 Copy the zassetse directory into the game root directory
 
 
-3.25) Commodore64 games notes:
+3.29) Commodore64 games notes:
 ----- ------------------------
 Both Maniac Mansion and Zak McKracken run but Maniac Mansion is not yet
 playable. Simply name the D64 disks "maniac1.d64" and "maniac2.d64"
@@ -1199,7 +1351,7 @@ to Commodore64. We recommend using the much simpler approach described
 in the previous paragraph.
 
 
-3.26) Macintosh games notes:
+3.30) Macintosh games notes:
 ----- ----------------------
 All LucasArts SCUMM based adventures, except COMI, also exist in versions
 for the Macintosh. ScummVM can use most (all?) of them, however, in some
@@ -1309,10 +1461,20 @@ arguments -- see the next section.
   -z, --list-games         Display list of supported games and exit
   -t, --list-targets       Display list of configured targets and exit
   --list-saves=TARGET      Display a list of saved games for the game (TARGET) specified
-  --auto-detect            Display a list of games from current or specified
-                           directory and start the first one found. Use
-                           --path=PATH before--auto-detect to specify a
-                           directory.
+  -a, --add                Add all games from current or specified directory.
+                           If --game=ID is passed only the game with id ID is
+                           added. See also --detect.
+                           Use --path=PATH before -a, --add to specify a directory.
+  --detect                 Display a list of games with their ID from current or
+                           specified directory without adding it to the config.
+                           Use --path=PATH before --detect to specify a directory.
+  --game=ID                In combination with --add or --detect only adds or attempts to
+                           detect the game with id ID.
+  --auto-detect            Display a list of games from current or specified directory
+                           and start the first one. Use --path=PATH before --auto-detect
+                           to specify a directory.
+  --recursive              In combination with --add or --detect recurse down all
+                           subdirectories
   --console                Enable the console window (default: enabled) (Windows only)
 
   -c, --config=CONFIG      Use alternate configuration file
@@ -1438,6 +1600,7 @@ Engines which currently support returning to the Launcher are:
     SWORD1
     SWORD2
     TEENAGENT
+    TITANIC
     TOUCHE
     TSAGE
     TUCKER
@@ -1807,10 +1970,13 @@ versions.
     - Rename the saved game to 'elvira2-pc.xxx' (DOS version) or
       'elvira2.xxx' (Other versions)
 
-  Waxworks
-    - Add 8 bytes (saved game name) to the start of the saved game file
-    - Rename the saved game to 'waxworks-pc.xxx' (DOS version) or
-      'waxworks.xxx' (Other versions)
+  Myst
+    - Rename the saved game to 'myst-xxx.mys'
+    - Saves from the masterpiece edition and the regular edition are interchangeable
+
+  Riven
+    - Rename the saved game to 'riven-xxx.rvn'
+    - Saves from the CD and DVD edition are not interchangeable
 
   Simon the Sorcerer 1
     - Rename the saved game to 'simon1.xxx'
@@ -1818,10 +1984,20 @@ versions.
   Simon the Sorcerer 2
     - Rename the saved game to 'simon2.xxx'
 
+  Starship Titanic
+    - Rename the saved game to 'titanic-win.xxx' for saves from the English 
+      version and 'titanic-win-de.xxx' for saves from the German version
+    - Saved games between different languages are not interchangeable
+
   The Feeble Files
     - Rename the saved game to 'feeble.xxx'
 
-Where 'xxx' is exact the saved game slot (ie 001) under ScummVM
+  Waxworks
+    - Add 8 bytes (saved game name) to the start of the saved game file
+    - Rename the saved game to 'waxworks-pc.xxx' (DOS version) or
+      'waxworks.xxx' (Other versions)
+
+Where 'xxx' is exact the saved game slot (i.e., 001) under ScummVM
 
 
 6.3) Viewing/Loading saved games from the command line:
@@ -1857,6 +2033,7 @@ Where 'xxx' is exact the saved game slot (ie 001) under ScummVM
        SWORD2
        TEENAGENT
        TINSEL
+       TITANIC
        TOON
        TOUCHE
        TSAGE
@@ -1890,6 +2067,7 @@ Where 'xxx' is exact the saved game slot (ie 001) under ScummVM
        SWORD2
        TEENAGENT
        TINSEL
+       TITANIC
        TOON
        TOUCHE
        TSAGE
@@ -2415,6 +2593,13 @@ The following keywords are recognized:
     save_slot          number   The saved game number to load on startup.
     savepath           string   The path to where a game will store its
                                 saved games.
+    screenshotpath     string   The path to where screenshots are saved.
+    iconpath           string   The path to where to look for icons to use as
+                                overlay for the ScummVM icon in the Windows
+                                taskbar or macOS X Dock when running a game.
+                                The icon files should be named after the game
+                                ids and be in ico format on Windows or png
+                                format on macOS X.
     versioninfo        string   The version of the ScummVM that created the
                                 configuration file.
 
@@ -2449,6 +2634,11 @@ The following keywords are recognized:
     opl_driver         string   The AdLib (OPL) emulator to use.
     output_rate        number   The output sample rate to use, in Hz. Sensible
                                 values are 11025, 22050 and 44100.
+    audio_buffer_size  number   Overrides the size of the audio buffer. The
+                                value must be one of: 256 512 1024 2048 4096
+                                8192 16384 32768. The default value is
+                                calculated based on the output_rate to keep
+                                audio latency below 45ms.
     alsa_port          string   Port to use for output when using the
                                 ALSA music driver.
     music_volume       number   The music volume setting (0-255)
@@ -2627,7 +2817,25 @@ once or readded in the ScummVM launcher's game list. This will update the
 configuration of each entry, allowing the custom options to be shown.
 
 
-9.0) Compiling:
+9.0) Screenshots (SDL backend only):
+---- -------------------------------
+On systems using the SDL backend (for example Windows, Mac or Linux) you can use
+alt+s to take snapshots (see section 5.4 - Hotkeys).
+
+You can specify the directory in which you want the screenshots to be created in
+the config file. To do so add a screenshotpath value under the [scummvm] section:
+
+[scummvm]
+screenshotpath=/path/to/screenshots/
+
+The default location, when no screenshot path is defined in the config file,
+depends on the OS:
+  Windows: In Users\username\My Pictures\ScummVM Screenshots.
+  macOS X: On the Desktop.
+  Any other OS: In the current directory.
+
+
+10.0) Compiling:
 ---- ----------
 For an up-to-date overview on how to compile ScummVM for various
 platforms, please consult our Wiki, in particular this page:
@@ -2736,7 +2944,7 @@ debug messages (see <https://technet.microsoft.com/en-us/sysinternals/debugview.
       <http://wiki.scummvm.org/index.php/Compiling_ScummVM/Symbian>
 
 
-10.0) Credits
+11.0) Credits
 ----- -------
 Please refer to our extensive Credits list at:
 

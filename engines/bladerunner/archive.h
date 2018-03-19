@@ -38,7 +38,7 @@ public:
 	void close();
 	bool isOpen() const;
 
-	Common::String getName() { return _fd.getName(); }
+	Common::String getName() const { return _fd.getName(); }
 
 	Common::SeekableReadStream *createReadStreamForMember(const Common::String &name);
 
@@ -46,7 +46,7 @@ private:
 	Common::File _fd;
 	bool _isTLK;
 
-	uint16 _entry_count;
+	uint16 _entryCount;
 	uint32 _size;
 
 	struct ArchiveEntry {

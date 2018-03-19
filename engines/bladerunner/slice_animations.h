@@ -36,12 +36,6 @@ namespace BladeRunner {
 
 class BladeRunnerEngine;
 
-struct SlicePalette {
-	uint16 color555[256];
-	Color256 color[256];
-
-//	uint16 &operator[](size_t i) { return color555[i]; }
-};
 
 class SliceAnimations {
 	friend class SliceRenderer;
@@ -55,11 +49,18 @@ class SliceAnimations {
 		uint32 offset;
 	};
 
+	struct Palette {
+		uint16 color555[256];
+		Color256 color[256];
+
+	//	uint16 &operator[](size_t i) { return color555[i]; }
+	};
+
 	struct Page {
 		void   *_data;
 		uint32 _lastAccess;
 
-		Page() : _data(nullptr) {}
+		Page() : _data(nullptr), _lastAccess(0) {}
 	};
 
 	struct PageFile {
@@ -80,7 +81,7 @@ class SliceAnimations {
 	uint32 _pageCount;
 	uint32 _paletteCount;
 
-	Common::Array<SlicePalette> _palettes;
+	Common::Array<Palette>      _palettes;
 	Common::Array<Animation>    _animations;
 	Common::Array<Page>         _pages;
 
@@ -89,10 +90,13 @@ class SliceAnimations {
 
 public:
 	SliceAnimations(BladeRunnerEngine *vm)
-		: _vm(vm),
-		  _coreAnimPageFile(this),
-		  _framesPageFile(this) {
-	}
+		: _vm(vm)
+		, _coreAnimPageFile(this)
+		, _framesPageFile(this)
+		, _timestamp(0)
+		, _pageSize(0)
+		, _pageCount(0)
+		, _paletteCount(0) {}
 	~SliceAnimations();
 
 	bool open(const Common::String &name);
@@ -100,14 +104,14 @@ public:
 	bool openCoreAnim();
 	bool openHDFrames();
 
-	SlicePalette &getPalette(int i) { return _palettes[i]; };
-	void *getFramePtr(uint32 animation, uint32 frame);
+	Palette &getPalette(int i) { return _palettes[i]; };
+	void    *getFramePtr(uint32 animation, uint32 frame);
 
-	int getFrameCount(int animation){ return _animations[animation].frameCount; }
-	float getFPS(int animation){ return _animations[animation].fps; }
+	int   getFrameCount(int animation) const { return _animations[animation].frameCount; }
+	float getFPS(int animation) const { return _animations[animation].fps; }
 
-	Vector3 getPositionChange(int animation);
-	float getFacingChange(int animation);
+	Vector3 getPositionChange(int animation) const;
+	float   getFacingChange(int animation) const;
 };
 
 } // End of namespace BladeRunner

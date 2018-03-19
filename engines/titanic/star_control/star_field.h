@@ -23,33 +23,33 @@
 #ifndef TITANIC_STAR_FIELD_H
 #define TITANIC_STAR_FIELD_H
 
-#include "titanic/star_control/star_control_sub2.h"
+#include "titanic/star_control/star_field_base.h"
 #include "titanic/star_control/star_closeup.h"
-#include "titanic/star_control/star_control_sub7.h"
-#include "titanic/star_control/star_control_sub8.h"
+#include "titanic/star_control/star_markers.h"
+#include "titanic/star_control/star_crosshairs.h"
 #include "titanic/star_control/star_points1.h"
 #include "titanic/star_control/star_points2.h"
 
 namespace Titanic {
 
-class CStarField : public CStarControlSub2 {
+class CStarField : public CStarFieldBase {
 private:
-	CStarControlSub7 _sub7;
-	CStarControlSub8 _sub8;
+	CStarMarkers _markers;
+	CStarCrosshairs _crosshairs;
 	CStarPoints1 _points1;
 	CStarPoints2 _points2;
 	CStarCloseup _starCloseup;
 	bool _points1On;
 	bool _points2On;
 	StarMode _mode;
-	bool _showCrosshairs;
-	int _val5;
+	bool _showBox;
+	bool _closeToMarker;
 	bool _isSolved;
 private:
 	/**
-	 * Draws the square box crosshairs in the middle of the screen
+	 * Draws the big square box in the middle of the screen
 	 */
-	void drawCrosshairs(CSurfaceArea *surfaceArea);
+	void drawBox(CSurfaceArea *surfaceArea);
 
 	void fn4(CSurfaceArea *surfaceArea, CStarCamera *camera);
 public:
@@ -90,17 +90,24 @@ public:
 	void setMode(StarMode mode);
 	
 	/**
-	 * Toggles whether the crosshairs box is visible
+	 * Toggles whether the big box is visible
 	 */
-	void toggleCrosshairs();
+	void toggleBox();
 
 	/**
-	 * Sets whether the crosshairs box is visible
+	 * Sets whether the big box is visible
 	 */
-	bool setCrosshairs(bool isVisible);
+	bool setBoxVisible(bool isVisible);
 
-	int get88() const;
-	int get5() const;
+	/**
+	 * Returns the index for the number of star matches
+	 */
+	int getMatchedIndex() const;
+
+	/**
+	 * Returns true if the center of the starfield viewpoint is close to a marker
+	 */
+	bool isCloseToMarker() const;
 
 	/**
 	 * Sets the flag that the starfield has been solved
@@ -112,15 +119,33 @@ public:
 	 */
 	bool isSolved() const;
 
-	int get7Count() const {
-		return _sub7.size();
+	/**
+	 * Return true if the starfield puzzle was skipped
+	 */
+	bool isSkipped() const;
+
+	/**
+	 * Skips the starfield puzzle
+	 */
+	void skipPuzzle();
+
+	/**
+	 * Returns the number of markers placed in the starfield
+	 */
+	int getMarkerCount() const {
+		return _markers.size();
 	}
 
 	void fn1(CErrorCode *errorCode);
 	double fn5(CSurfaceArea *surfaceArea, CStarCamera *camera,
 		FVector &v1, FVector &v2, FVector &v3);
 	void fn6(CVideoSurface *surface, CStarCamera *camera);
-	void fn7();
+
+	/**
+	 * Increments the number of matched markers
+	 */
+	void incMatches();
+
 	void fn8(CVideoSurface *surface);
 	void fn9() { _starCloseup.fn1(); }
 

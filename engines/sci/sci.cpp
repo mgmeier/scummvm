@@ -23,6 +23,7 @@
 #include "common/system.h"
 #include "common/config-manager.h"
 #include "common/debug-channels.h"
+#include "common/translation.h"
 
 #include "engines/advancedDetector.h"
 #include "engines/util.h"
@@ -41,6 +42,7 @@
 #include "sci/engine/script.h"	// for script_adjust_opcode_formats
 #include "sci/engine/script_patches.h"
 #include "sci/engine/selector.h"	// for SELECTOR
+#include "sci/engine/scriptdebug.h"
 
 #include "sci/sound/audio.h"
 #include "sci/sound/music.h"
@@ -150,6 +152,8 @@ SciEngine::SciEngine(OSystem *syst, const ADGameDescription *desc, SciGameId gam
 	SearchMan.addSubDirectoryMatching(gameDataDir, "robots");	// robot movie files
 	SearchMan.addSubDirectoryMatching(gameDataDir, "movie");	// VMD movie files
 	SearchMan.addSubDirectoryMatching(gameDataDir, "movies");	// VMD movie files
+	SearchMan.addSubDirectoryMatching(gameDataDir, "music");	// LSL7 music files (GOG version)
+	SearchMan.addSubDirectoryMatching(gameDataDir, "music/22s16");	// LSL7 music files
 	SearchMan.addSubDirectoryMatching(gameDataDir, "vmd");	// VMD movie files
 	SearchMan.addSubDirectoryMatching(gameDataDir, "duk");	// Duck movie files in Phantasmagoria 2
 	SearchMan.addSubDirectoryMatching(gameDataDir, "Robot Folder"); // Mac robot files
@@ -159,9 +163,40 @@ SciEngine::SciEngine(OSystem *syst, const ADGameDescription *desc, SciGameId gam
 	SearchMan.addSubDirectoryMatching(gameDataDir, "VMD Folder"); // Mac VMD files
 
 	// Add the patches directory, except for KQ6CD; The patches folder in some versions of KQ6CD
-	// is for the demo of Phantasmagoria, included in the disk
-	if (_gameId != GID_KQ6)
-		SearchMan.addSubDirectoryMatching(gameDataDir, "patches");	// resource patches
+	// (e.g. KQ Collection 1997) is for the demo of Phantasmagoria, included in the disk
+	if (_gameId != GID_KQ6) {
+		// Patch files in the root directory of Phantasmagoria 2 are higher
+		// priority than patch files in the patches directory (the SSCI
+		// installer copies these patches to HDD and gives the HDD directory
+		// top priority)
+		const int priority = _gameId == GID_PHANTASMAGORIA2 ? -1 : 0;
+		SearchMan.addSubDirectoryMatching(gameDataDir, "patches", priority);	// resource patches
+	}
+
+	// Some releases (e.g. Pointsoft Torin) use a different patch directory name
+	SearchMan.addSubDirectoryMatching(gameDataDir, "patch");	// resource patches
+
+	switch (desc->language) {
+	case Common::DE_DEU:
+		SearchMan.addSubDirectoryMatching(gameDataDir, "german/msg");
+		break;
+	case Common::EN_ANY:
+	case Common::EN_GRB:
+	case Common::EN_USA:
+		SearchMan.addSubDirectoryMatching(gameDataDir, "english/msg");
+		break;
+	case Common::ES_ESP:
+		SearchMan.addSubDirectoryMatching(gameDataDir, "spanish/msg");
+		break;
+	case Common::FR_FRA:
+		SearchMan.addSubDirectoryMatching(gameDataDir, "french/msg");
+		break;
+	case Common::IT_ITA:
+		SearchMan.addSubDirectoryMatching(gameDataDir, "italian/msg");
+		break;
+	default:
+		break;
+	}
 }
 
 SciEngine::~SciEngine() {
@@ -241,7 +276,7 @@ Common::Error SciEngine::run() {
 
 	// Add the after market GM patches for the specified game, if they exist
 	_resMan->addNewGMPatch(_gameId);
-	_gameObjectAddress = _resMan->findGameObject();
+	_gameObjectAddress = _resMan->findGameObject(true, isBE());
 
 	_scriptPatcher = new ScriptPatcher();
 	SegManager *segMan = new SegManager(_resMan, _scriptPatcher);
@@ -286,7 +321,7 @@ Common::Error SciEngine::run() {
 	_guestAdditions = new GuestAdditions(_gamestate, _features, _kernel);
 	_eventMan = new EventManager(_resMan->detectFontExtended());
 #ifdef ENABLE_SCI32
-	if (getSciVersion() >= SCI_VERSION_2_1_EARLY) {
+	if (getSciVersion() >= SCI_VERSION_2) {
 		_audio32 = new Audio32(_resMan);
 	} else
 #endif
@@ -362,23 +397,23 @@ Common::Error SciEngine::run() {
 		Resource *buggyScript = _resMan->findResource(ResourceId(kResourceTypeScript, 180), 0);
 
 		if (buggyScript && (buggyScript->size() == 12354 || buggyScript->size() == 12362)) {
-			showScummVMDialog("A known buggy game script has been detected, which could "
+			showScummVMDialog(_("A known buggy game script has been detected, which could "
 			                  "prevent you from progressing later on in the game, during "
 			                  "the sequence with the Green Man's riddles. Please, apply "
 			                  "the latest patch for this game by Sierra to avoid possible "
-			                  "problems");
+			                  "problems."));
 		}
 	}
 
 	if (getGameId() == GID_KQ7 && ConfMan.getBool("subtitles")) {
-		showScummVMDialog("Subtitles are enabled, but subtitling in King's"
+		showScummVMDialog(_("Subtitles are enabled, but subtitling in King's"
 						  " Quest 7 was unfinished and disabled in the release"
 						  " version of the game. ScummVM allows the subtitles"
 						  " to be re-enabled, but because they were removed from"
 						  " the original game, they do not always render"
 						  " properly or reflect the actual game speech."
 						  " This is not a ScummVM bug -- it is a problem with"
-						  " the game's assets.");
+						  " the game's assets."));
 	}
 
 	// Show a warning if the user has selected a General MIDI device, no GM patch exists
@@ -395,7 +430,7 @@ Common::Error SciEngine::run() {
 			case GID_SQ1:
 			case GID_SQ4:
 			case GID_FAIRYTALES:
-				showScummVMDialog("You have selected General MIDI as a sound device. Sierra "
+				showScummVMDialog(_("You have selected General MIDI as a sound device. Sierra "
 				                  "has provided after-market support for General MIDI for this "
 				                  "game in their \"General MIDI Utility\". Please, apply this "
 				                  "patch in order to enjoy MIDI music with this game. Once you "
@@ -405,7 +440,7 @@ Common::Error SciEngine::run() {
 				                  "the instructions in the READ.ME file included in the patch and "
 				                  "rename the associated *.PAT file to 4.PAT and place it in the "
 				                  "game folder. Without this patch, General MIDI music for this "
-				                  "game will sound badly distorted.");
+				                  "game will sound badly distorted."));
 				break;
 			default:
 				break;
@@ -414,11 +449,11 @@ Common::Error SciEngine::run() {
 	}
 
 	if (gameHasFanMadePatch()) {
-		showScummVMDialog("Your game is patched with a fan made script patch. Such patches have "
+		showScummVMDialog(_("Your game is patched with a fan made script patch. Such patches have "
 		                  "been reported to cause issues, as they modify game scripts extensively. "
 		                  "The issues that these patches fix do not occur in ScummVM, so you are "
 		                  "advised to remove this patch from your game folder in order to avoid "
-		                  "having unexpected errors and/or issues later on.");
+		                  "having unexpected errors and/or issues later on."));
 	}
 
 	runGame();
@@ -534,6 +569,10 @@ bool SciEngine::initGame() {
 	// Load game language into printLang property of game object
 	setSciLanguage();
 
+#ifdef ENABLE_SCI32
+	_guestAdditions->sciEngineInitGameHook();
+#endif
+
 	return true;
 }
 
@@ -631,14 +670,14 @@ void SciEngine::initStackBaseWithSelector(Selector selector) {
 
 	// Register the first element on the execution stack
 	if (!send_selector(_gamestate, _gameObjectAddress, _gameObjectAddress, _gamestate->stack_base, 2, _gamestate->stack_base)) {
-		_console->printObject(_gameObjectAddress);
+		printObject(_gameObjectAddress);
 		error("initStackBaseWithSelector: error while registering the first selector in the call stack");
 	}
 
 }
 
 void SciEngine::runGame() {
-	setTotalPlayTime(0);
+	setTotalPlayTime(17);
 
 	initStackBaseWithSelector(SELECTOR(play)); // Call the play selector
 
@@ -809,12 +848,25 @@ int SciEngine::inQfGImportRoom() const {
 }
 
 void SciEngine::sleep(uint32 msecs) {
+	if (!msecs) {
+		return;
+	}
+
 	uint32 time;
 	const uint32 wakeUpTime = g_system->getMillis() + msecs;
 
 	for (;;) {
 		// let backend process events and update the screen
-		_eventMan->getSciEvent(SCI_EVENT_PEEK);
+		_eventMan->getSciEvent(kSciEventPeek);
+
+#ifdef ENABLE_SCI32
+		// If a game is in a wait loop, kFrameOut is not called, but mouse
+		// movement is still occurring and the screen needs to be updated to
+		// reflect it
+		if (getSciVersion() >= SCI_VERSION_2) {
+			g_sci->_gfxFrameout->updateScreen();
+		}
+#endif
 		time = g_system->getMillis();
 		if (time + 10 < wakeUpTime) {
 			g_system->delayMillis(10);
@@ -823,7 +875,6 @@ void SciEngine::sleep(uint32 msecs) {
 				g_system->delayMillis(wakeUpTime - time);
 			break;
 		}
-
 	}
 }
 
@@ -865,8 +916,21 @@ void SciEngine::pauseEngineIntern(bool pause) {
 }
 
 void SciEngine::syncSoundSettings() {
+	updateSoundMixerVolumes();
+	_guestAdditions->syncSoundSettingsFromScummVM();
+}
+
+void SciEngine::updateSoundMixerVolumes() {
 	Engine::syncSoundSettings();
-	_guestAdditions->syncSoundSettings();
+
+	// ScummVM adjusts the software mixer volume in Engine::syncSoundSettings,
+	// but MIDI either does not run through the ScummVM mixer (e.g. hardware
+	// synth) or it uses a kPlainSoundType channel type, so the master MIDI
+	// volume must be adjusted here for MIDI playback volume to be correct
+	if (_soundCmd) {
+		const int16 musicVolume = (ConfMan.getInt("music_volume") + 1) * MUSIC_MASTERVOLUME_MAX / Audio::Mixer::kMaxMixerVolume;
+		_soundCmd->setMasterVolume(ConfMan.getBool("mute") ? 0 : musicVolume);
+	}
 }
 
 void SciEngine::loadMacExecutable() {

@@ -20,7 +20,7 @@
  *
  */
 
-#include "bladerunner/script/scene.h"
+#include "bladerunner/script/scene_script.h"
 
 namespace BladeRunner {
 
@@ -190,7 +190,7 @@ bool SceneScriptPS10::ClickedOnExit(int exitId) {
 			sub_402238();
 			Global_Variable_Decrement(9, 20 - Global_Variable_Query(10));
 			Global_Variable_Set(10, 20);
-			Set_Enter(14, 74);
+			Set_Enter(14, kScenePS11);
 		}
 		return true;
 	}

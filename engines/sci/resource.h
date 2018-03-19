@@ -43,6 +43,11 @@ class SeekableReadStream;
 namespace Sci {
 
 enum {
+#ifdef ENABLE_SCI32
+	// Hack to treat RESMAP.PAT/RESSCI.PAT as the highest volume
+	kResPatVolumeNumber = 100,
+#endif
+
 	kResourceHeaderSize = 2, ///< patch type + header size
 
 	/** The maximum allowed size for a compressed or decompressed resource */
@@ -124,6 +129,7 @@ enum ResourceType {
 };
 
 const char *getResourceTypeName(ResourceType restype);
+const char *getResourceTypeExtension(ResourceType restype);
 
 enum ResVersion {
 	kResVersionUnknown,
@@ -164,6 +170,8 @@ class ResourceId {
 		return string;
 	}
 
+	friend void syncWithSerializer(Common::Serializer &s, ResourceId &obj);
+
 public:
 	ResourceId() : _type(kResourceTypeInvalid), _number(0), _tuple(0) { }
 
@@ -190,7 +198,11 @@ public:
 	Common::String toPatchNameBase36() const {
 		Common::String output;
 
-		output += (getType() == kResourceTypeAudio36) ? '@' : '#'; // Identifier
+		if (getSciVersion() >= SCI_VERSION_2) {
+			output += (getType() == kResourceTypeAudio36) ? 'A' : 'S'; // Identifier
+		} else {
+			output += (getType() == kResourceTypeAudio36) ? '@' : '#'; // Identifier
+		}
 		output += intToBase36(getNumber(), 3);                     // Map
 		output += intToBase36(getTuple() >> 24, 2);                // Noun
 		output += intToBase36((getTuple() >> 16) & 0xff, 2);       // Verb
@@ -277,6 +289,8 @@ public:
 	// eases transition.
 	uint32 getAudioCompressionType() const;
 
+	uint16 getNumLockers() const { return _lockers; }
+
 protected:
 	ResourceId _id;	// TODO: _id could almost be made const, only readResourceInfo() modifies it...
 	int32 _fileOffset; /**< Offset in file */
@@ -317,7 +331,7 @@ public:
 	/**
 	 * Creates a new SCI resource manager.
 	 */
-	ResourceManager();
+	ResourceManager(const bool detectionMode = false);
 	~ResourceManager();
 
 
@@ -376,7 +390,7 @@ public:
 
 	void setAudioLanguage(int language);
 	int getAudioLanguage() const;
-	void changeAudioDirectory(const Common::String &path);
+	void changeAudioDirectory(Common::String path);
 	bool isGMTrackIncluded();
 	bool isSci11Mac() const { return _volVersion == kResVersionSci11Mac; }
 	ViewType getViewType() const { return _viewType; }
@@ -434,7 +448,7 @@ public:
 	/**
 	 * Finds the internal Sierra ID of the current game from script 0.
 	 */
-	Common::String findSierraGameId();
+	Common::String findSierraGameId(const bool isBE);
 
 	/**
 	 * Finds the location of the game object from script 0.
@@ -442,7 +456,7 @@ public:
 	 *        games. Needs to be false when the heap is accessed directly inside
 	 *        findSierraGameId().
 	 */
-	reg_t findGameObject(bool addSci11ScriptOffset = true);
+	reg_t findGameObject(const bool addSci11ScriptOffset, const bool isBE);
 
 	/**
 	 * Converts a map resource type to our type
@@ -452,6 +466,8 @@ public:
 	ResourceType convertResType(byte type);
 
 protected:
+	bool _detectionMode;
+
 	// Maximum number of bytes to allow being allocated for resources
 	// Note: maxMemory will not be interpreted as a hard limit, only as a restriction
 	// for resources which are not explicitly locked. However, a warning will be
@@ -459,7 +475,8 @@ protected:
 	int _maxMemoryLRU;
 
 	ViewType _viewType; // Used to determine if the game has EGA or VGA graphics
-	Common::List<ResourceSource *> _sources;
+	typedef Common::List<ResourceSource *> SourcesList;
+	SourcesList _sources;
 	int _memoryLocked;	///< Amount of resource bytes in locked memory
 	int _memoryLRU;		///< Amount of resource bytes under LRU control
 	Common::List<Resource *> _LRU; ///< Last Resource Used list
@@ -514,11 +531,19 @@ protected:
 	 */
 	const char *versionDescription(ResVersion version) const;
 
+	/**
+	 * All calls to getVolumeFile must be followed with a corresponding
+	 * call to disposeVolumeFileStream once the stream is finished being used.
+	 * Do NOT call delete directly on returned streams, as they may be cached.
+	 */
 	Common::SeekableReadStream *getVolumeFile(ResourceSource *source);
+	void disposeVolumeFileStream(Common::SeekableReadStream *fileStream, ResourceSource *source);
 	void loadResource(Resource *res);
 	void freeOldResources();
-	void addResource(ResourceId resId, ResourceSource *src, uint32 offset, uint32 size = 0);
-	Resource *updateResource(ResourceId resId, ResourceSource *src, uint32 size);
+	bool validateResource(const ResourceId &resourceId, const Common::String &sourceMapLocation, const Common::String &sourceName, const uint32 offset, const uint32 size, const uint32 sourceSize) const;
+	Resource *addResource(ResourceId resId, ResourceSource *src, uint32 offset, uint32 size = 0, const Common::String &sourceMapLocation = Common::String("(no map location)"));
+	Resource *updateResource(ResourceId resId, ResourceSource *src, uint32 size, const Common::String &sourceMapLocation = Common::String("(no map location)"));
+	Resource *updateResource(ResourceId resId, ResourceSource *src, uint32 offset, uint32 size, const Common::String &sourceMapLocation = Common::String("(no map location)"));
 	void removeAudioResource(ResourceId resId);
 
 	/**--- Resource map decoding functions ---*/
@@ -561,13 +586,20 @@ protected:
 	 */
 	void readResourcePatches();
 	void readResourcePatchesBase36();
+
+	/**
+	 * Determines whether or not a patch file matching the given resource ID
+	 * should be ignored when processing patches.
+	 */
+	bool isBlacklistedPatch(const ResourceId &resId) const;
+
 	void processPatch(ResourceSource *source, ResourceType resourceType, uint16 resourceNr, uint32 tuple = 0);
 
 	/**
 	 * Process wave files as patches for Audio resources.
 	 */
 	void readWaveAudioPatches();
-	void processWavePatch(ResourceId resourceId, Common::String name);
+	void processWavePatch(ResourceId resourceId, const Common::String &name);
 
 	/**
 	 * Applies to all versions before 0.000.395 (i.e. KQ4 old, XMAS 1988 and LSL2).
@@ -590,6 +622,9 @@ protected:
 	bool checkResourceDataForSignature(Resource *resource, const byte *signature);
 	bool checkResourceForSignatures(ResourceType resourceType, uint16 resourceNr, const byte *signature1, const byte *signature2);
 	void detectSciVersion();
+
+private:
+	bool _hasBadResources;
 };
 
 class SoundResource {

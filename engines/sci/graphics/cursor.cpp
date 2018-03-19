@@ -113,7 +113,7 @@ void GfxCursor::kernelSetShape(GuiResourceId resourceId) {
 	byte colorMapping[4];
 	int16 x, y;
 	byte color;
-	int16 maskA, maskB;
+	uint16 maskA, maskB;
 	byte *pOut;
 	int16 heightWidth;
 
@@ -179,7 +179,7 @@ void GfxCursor::kernelSetShape(GuiResourceId resourceId) {
 		Common::SpanOwner<SciSpan<byte> > upscaledBitmap;
 		upscaledBitmap->allocate(heightWidth * heightWidth, "upscaled cursor bitmap");
 		_screen->scale2x(*rawBitmap, *upscaledBitmap, SCI_CURSOR_SCI0_HEIGHTWIDTH, SCI_CURSOR_SCI0_HEIGHTWIDTH);
-		rawBitmap = upscaledBitmap;
+		rawBitmap.moveFrom(upscaledBitmap);
 	}
 
 	if (hotspot.x >= heightWidth || hotspot.y >= heightWidth) {
@@ -198,18 +198,6 @@ void GfxCursor::kernelSetView(GuiResourceId viewNum, int loopNum, int celNum, Co
 	// Use the original Windows cursors in KQ6, if requested
 	if (_useOriginalKQ6WinCursors)
 		viewNum += 2000;		// Windows cursors
-
-	if (g_sci->getGameId() == GID_PHANTASMAGORIA2) {
-		// HACK: Ignore cursor views for Phantasmagoria 2. They've got
-		// differences from other SCI32 views, thus we skip them for
-		// now, otherwise our view decoding code will crash.
-		// The view code will crash with *any* view in P2, but this hack
-		// allows the game to start and show the menu.
-		// TODO: Remove once the view code is updated to handle
-		// Phantasmagoria 2 views.
-		warning("TODO: Cursor views for Phantasmagoria 2");
-		return;
-	}
 
 	// Use the alternate silver cursors in SQ4 CD, if requested
 	if (_useSilverSQ4CDCursors) {
@@ -491,7 +479,7 @@ void GfxCursor::kernelMoveCursor(Common::Point pos) {
 
 	// Trigger event reading to make sure the mouse coordinates will
 	// actually have changed the next time we read them.
-	_event->getSciEvent(SCI_EVENT_PEEK);
+	_event->getSciEvent(kSciEventPeek);
 }
 
 void GfxCursor::kernelSetMacCursor(GuiResourceId viewNum, int loopNum, int celNum) {

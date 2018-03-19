@@ -20,15 +20,16 @@
  *
  */
 
-#include "common/rect.h"
 #include "titanic/star_control/base_stars.h"
-#include "titanic/star_control/star_camera.h"
-#include "titanic/star_control/surface_area.h"
+#include "common/rect.h"
 
 #ifndef TITANIC_STAR_REF_H
 #define TITANIC_STAR_REF_H
 
 namespace Titanic {
+
+class CStarCamera;
+class CSurfaceArea;
 
 class CBaseStarRef {
 protected:
@@ -56,15 +57,15 @@ public:
 	virtual bool check(const Common::Point &pt, int index);
 };
 
-class CStarRef2 : public CBaseStarRef {
+class CStarRefArray : public CBaseStarRef {
 private:
 	Common::Array<CStarPosition> *_positions;
 public:
 	int _index;
 public:
-	CStarRef2(CBaseStars *stars, Common::Array<CStarPosition> *positions) :
+	CStarRefArray(CBaseStars *stars, Common::Array<CStarPosition> *positions) :
 		CBaseStarRef(stars), _positions(positions), _index(0) {}
-	virtual ~CStarRef2() {}
+	virtual ~CStarRefArray() {}
 
 	virtual bool check(const Common::Point &pt, int index);
 };

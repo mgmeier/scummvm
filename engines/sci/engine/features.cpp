@@ -77,7 +77,7 @@ bool GameFeatures::autoDetectSoundType() {
 	if (!addr.getSegment())
 		return false;
 
-	uint16 offset = addr.getOffset();
+	uint32 offset = addr.getOffset();
 	Script *script = _segMan->getScript(addr.getSegment());
 	uint16 intParam = 0xFFFF;
 	bool foundTarget = false;
@@ -143,8 +143,17 @@ SciVersion GameFeatures::detectDoSoundType() {
 			//  SCI0LATE. Although the last SCI0EARLY game (lsl2) uses SCI0LATE resources
 			_doSoundType = g_sci->getResMan()->detectEarlySound() ? SCI_VERSION_0_EARLY : SCI_VERSION_0_LATE;
 #ifdef ENABLE_SCI32
+		} else if (getSciVersion() >= SCI_VERSION_2_1_MIDDLE &&
+				   g_sci->getGameId() != GID_SQ6 &&
+				   // Assuming MGDX uses SCI2.1early sound mode since SQ6 does
+				   // and it was released earlier, but not verified (Phar Lap
+				   // Windows-only release)
+				   g_sci->getGameId() != GID_MOTHERGOOSEHIRES) {
+			_doSoundType = SCI_VERSION_2_1_MIDDLE;
 		} else if (getSciVersion() >= SCI_VERSION_2_1_EARLY) {
 			_doSoundType = SCI_VERSION_2_1_EARLY;
+		} else if (getSciVersion() >= SCI_VERSION_2) {
+			_doSoundType = SCI_VERSION_2;
 #endif
 		} else if (SELECTOR(nodePtr) == -1) {
 			// No nodePtr selector, so this game is definitely using newer
@@ -224,7 +233,7 @@ bool GameFeatures::autoDetectLofsType(Common::String gameSuperClassName, int met
 	if (!addr.getSegment())
 		return false;
 
-	uint16 offset = addr.getOffset();
+	uint32 offset = addr.getOffset();
 	Script *script = _segMan->getScript(addr.getSegment());
 
 	while (true) {
@@ -323,7 +332,7 @@ bool GameFeatures::autoDetectGfxFunctionsType(int methodNum) {
 	if (!addr.getSegment())
 		return false;
 
-	uint16 offset = addr.getOffset();
+	uint32 offset = addr.getOffset();
 	Script *script = _segMan->getScript(addr.getSegment());
 
 	while (true) {
@@ -471,11 +480,12 @@ bool GameFeatures::autoDetectSci21KernelType() {
 		// don't have sounds at all, but they're using a SCI2 kernel
 		if (g_sci->getGameId() == GID_CHEST || g_sci->getGameId() == GID_KQUESTIONS) {
 			_sci21KernelType = SCI_VERSION_2;
-			return true;
+		} else if (g_sci->getGameId() == GID_RAMA && g_sci->isDemo()) {
+			_sci21KernelType = SCI_VERSION_2_1_MIDDLE;
+		} else {
+			warning("autoDetectSci21KernelType(): Sound object not loaded, assuming a SCI2.1 table");
+			_sci21KernelType = SCI_VERSION_2_1_EARLY;
 		}
-
-		warning("autoDetectSci21KernelType(): Sound object not loaded, assuming a SCI2.1 table");
-		_sci21KernelType = SCI_VERSION_2_1_EARLY;
 		return true;
 	}
 
@@ -485,7 +495,7 @@ bool GameFeatures::autoDetectSci21KernelType() {
 	if (!addr.getSegment())
 		return false;
 
-	uint16 offset = addr.getOffset();
+	uint32 offset = addr.getOffset();
 	Script *script = _segMan->getScript(addr.getSegment());
 
 	while (true) {
@@ -547,6 +557,7 @@ bool GameFeatures::supportsSpeechWithSubtitles() const {
 	case GID_GK1:
 	case GID_KQ7:
 	case GID_LSL6HIRES:
+	case GID_LSL7:
 	case GID_PQ4:
 	case GID_QFG4:
 	case GID_SQ6:
@@ -564,9 +575,11 @@ bool GameFeatures::audioVolumeSyncUsesGlobals() const {
 	case GID_GK1:
 	case GID_GK2:
 	case GID_LSL6HIRES:
+	case GID_LSL7:
 	case GID_PHANTASMAGORIA:
+	case GID_PHANTASMAGORIA2:
+	case GID_RAMA:
 	case GID_TORIN:
-		// TODO: SCI3
 		return true;
 	default:
 		return false;
@@ -586,11 +599,15 @@ MessageTypeSyncStrategy GameFeatures::getMessageTypeSyncStrategy() const {
 	switch (g_sci->getGameId()) {
 	// TODO: Hoyle5, SCI3
 	case GID_GK1:
-	case GID_KQ7:
-	case GID_MOTHERGOOSEHIRES:
-	case GID_PHANTASMAGORIA:
 	case GID_PQ4:
 	case GID_QFG4:
+		return g_sci->isCD() ? kMessageTypeSyncStrategyDefault : kMessageTypeSyncStrategyNone;
+
+	case GID_KQ7:
+	case GID_LSL7:
+	case GID_MOTHERGOOSEHIRES:
+	case GID_PHANTASMAGORIA:
+	case GID_SQ6:
 	case GID_TORIN:
 		return kMessageTypeSyncStrategyDefault;
 
@@ -600,6 +617,8 @@ MessageTypeSyncStrategy GameFeatures::getMessageTypeSyncStrategy() const {
 	case GID_SHIVERS:
 		return kMessageTypeSyncStrategyShivers;
 
+	case GID_GK2:
+	case GID_PQSWAT:
 	default:
 		break;
 	}
@@ -615,7 +634,7 @@ bool GameFeatures::autoDetectMoveCountType() {
 	if (!addr.getSegment())
 		return false;
 
-	uint16 offset = addr.getOffset();
+	uint32 offset = addr.getOffset();
 	Script *script = _segMan->getScript(addr.getSegment());
 	bool foundTarget = false;
 
@@ -657,7 +676,6 @@ MoveCountType GameFeatures::detectMoveCountType() {
 		} else {
 			if (!autoDetectMoveCountType()) {
 				error("Move count autodetection failed");
-				_moveCountType = kIncrementMoveCount;	// Most games do this, so best guess
 			}
 		}
 
@@ -678,6 +696,27 @@ bool GameFeatures::useAltWinGMSound() {
 	} else {
 		return false;
 	}
+}
+
+bool GameFeatures::generalMidiOnly() {
+#ifdef ENABLE_SCI32
+	switch (g_sci->getGameId()) {
+	case GID_MOTHERGOOSEHIRES:
+		return true;
+	case GID_KQ7: {
+		if (g_sci->isDemo()) {
+			return false;
+		}
+
+		SoundResource sound(13, g_sci->getResMan(), detectDoSoundType());
+		return (sound.getTrackByType(/* AdLib */ 0) == nullptr);
+	}
+	default:
+		break;
+	}
+#endif
+
+	return false;
 }
 
 // PseudoMouse was added during SCI1

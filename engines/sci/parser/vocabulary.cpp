@@ -142,7 +142,7 @@ bool Vocabulary::loadParserWords() {
 
 		if (resourceType == kVocabularySCI1) {
 			c = 1;
-			while (seeker < resource->size() && currentWordPos < 255 && c) {
+			while (seeker < resource->size() && currentWordPos < ARRAYSIZE(currentWord) - 1 && c) {
 				c = resource->getUint8At(seeker++);
 				currentWord[currentWordPos++] = c;
 			}
@@ -153,9 +153,19 @@ bool Vocabulary::loadParserWords() {
 			}
 		} else {
 			do {
+				if (seeker == resource->size()) {
+					warning("SCI0: Vocabulary not usable, disabling");
+					return false;
+				}
 				c = resource->getUint8At(seeker++);
+				assert(currentWordPos < ARRAYSIZE(currentWord) - 1);
 				currentWord[currentWordPos++] = c & 0x7f; // 0x80 is used to terminate the string
 			} while (c < 0x80);
+		}
+
+		if (seeker == resource->size()) {
+			warning("Vocabulary not usable, disabling");
+			return false;
 		}
 
 		currentWord[currentWordPos] = 0;
